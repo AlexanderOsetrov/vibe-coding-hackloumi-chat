@@ -1,5 +1,34 @@
 #!/bin/bash
 
+# ⚠️  DEPRECATED: This script has been superseded by the Makefile
+# 
+# 🚀 USE THESE COMMANDS INSTEAD:
+#   make db-setup   # Replaces: ./scripts/db.sh setup
+#   make db-start   # Replaces: ./scripts/db.sh start  
+#   make db-stop    # Replaces: ./scripts/db.sh stop
+#   make db-status  # Replaces: ./scripts/db.sh status
+#   make db-connect # Replaces: ./scripts/db.sh connect
+#   make db-reset   # Replaces: ./scripts/db.sh reset
+#   make help       # See all available commands
+#
+# 📋 The Makefile provides:
+#   - Better organization and categorized help
+#   - Colored output for improved readability  
+#   - Integration with deployment commands
+#   - Consistent interface across all operations
+#   - Enhanced error handling and status reporting
+#
+# This script will be removed in a future version.
+
+echo "⚠️  DEPRECATION WARNING"
+echo "This script has been moved to the Makefile for better integration."
+echo ""
+echo "Please use 'make help' to see available database commands."
+echo "Example: make db-setup, make db-start, make db-status"
+echo ""
+echo "Continuing with legacy script execution..."
+echo ""
+
 # Database management script for Hackloumi Chat
 # Manages PostgreSQL container using Docker/Rancher Desktop
 

@@ -1,0 +1,38 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"  # Next.js web application
+      - "5432:5432"  # PostgreSQL database
+    volumes:
+      # Persist PostgreSQL data
+      - postgres_data:/var/lib/postgresql/data
+      # Persist logs
+      - app_logs:/var/log
+      # Optional: mount node_modules for faster rebuilds in development
+      - node_modules:/app/node_modules
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - hackloumi_network
+
+volumes:
+  postgres_data:
+    driver: local
+  app_logs:
+    driver: local
+  node_modules:
+    driver: local
+
+networks:
+  hackloumi_network:
+    driver: bridge 

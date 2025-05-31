@@ -16,37 +16,70 @@ YELLOW := \033[1;33m
 RED := \033[0;31m
 NC := \033[0m
 
-# AWS environment loading pattern - reused across commands
-AWS_ENV_SETUP = set -a && . ./.env && set +a && \
-	export TF_VAR_node_env="$$NODE_ENV" && \
-	export TF_VAR_database_url="$$DATABASE_URL" && \
-	export TF_VAR_jwt_secret="$$JWT_SECRET" && \
-	export TF_VAR_vpc_id="$$VPC_ID" && \
-	export TF_VAR_public_subnet_ids="[\"$$(echo $$SUBNET_IDS | sed 's/,/","/g')\"]" && \
-	export TF_VAR_aws_region="$$AWS_REGION" && \
-	export AWS_ACCESS_KEY_ID="$$AWS_ACCESS_KEY_ID" && \
-	export AWS_SECRET_ACCESS_KEY="$$AWS_SECRET_ACCESS_KEY" && \
-	export AWS_SESSION_TOKEN="$$AWS_SESSION_TOKEN" && \
-	export AWS_REGION="$$AWS_REGION" && \
-	export AWS_ACCOUNT_ID="$$AWS_ACCOUNT_ID"
+# AWS environment loading pattern - handles both local (.env) and CI/CD environments
+# Check if running in CI or if environment variables are already set
+AWS_ENV_SETUP = if [ "$$CI" = "true" ] || [ -n "$$AWS_ACCESS_KEY_ID" ]; then \
+		echo "$(BLUE)[INFO]$(NC) Using environment variables (CI/CD mode)..."; \
+		export TF_VAR_node_env="$$NODE_ENV"; \
+		export TF_VAR_database_url="$$DATABASE_URL"; \
+		export TF_VAR_jwt_secret="$$JWT_SECRET"; \
+		export TF_VAR_vpc_id="$$VPC_ID"; \
+		export TF_VAR_public_subnet_ids="[\"$$(echo $$SUBNET_IDS | sed 's/,/","/g')\"]"; \
+		export TF_VAR_aws_region="$$AWS_REGION"; \
+	else \
+		echo "$(BLUE)[INFO]$(NC) Loading from .env file (local development)..."; \
+		set -a && . ./.env && set +a; \
+		export TF_VAR_node_env="$$NODE_ENV"; \
+		export TF_VAR_database_url="$$DATABASE_URL"; \
+		export TF_VAR_jwt_secret="$$JWT_SECRET"; \
+		export TF_VAR_vpc_id="$$VPC_ID"; \
+		export TF_VAR_public_subnet_ids="[\"$$(echo $$SUBNET_IDS | sed 's/,/","/g')\"]"; \
+		export TF_VAR_aws_region="$$AWS_REGION"; \
+		export AWS_ACCESS_KEY_ID="$$AWS_ACCESS_KEY_ID"; \
+		export AWS_SECRET_ACCESS_KEY="$$AWS_SECRET_ACCESS_KEY"; \
+		export AWS_SESSION_TOKEN="$$AWS_SESSION_TOKEN"; \
+		export AWS_REGION="$$AWS_REGION"; \
+		export AWS_ACCOUNT_ID="$$AWS_ACCOUNT_ID"; \
+	fi
 
-# AWS .env file check
-AWS_ENV_CHECK = if [ ! -f .env ]; then \
-		echo "$(RED)[ERROR]$(NC) .env file not found!"; \
-		echo ""; \
-		echo "📋 Create a .env file with the following variables:"; \
-		echo "  NODE_ENV=production"; \
-		echo "  DATABASE_URL=postgresql://hackloumi:hackloumi@localhost:5432/hackloumi"; \
-		echo "  JWT_SECRET=your-jwt-secret-here"; \
-		echo "  VPC_ID=vpc-xxxxxxxxx"; \
-		echo "  SUBNET_IDS=subnet-xxxxxxx,subnet-yyyyyyy"; \
-		echo "  AWS_ACCESS_KEY_ID=your-aws-access-key"; \
-		echo "  AWS_SECRET_ACCESS_KEY=your-aws-secret-key"; \
-		echo "  AWS_SESSION_TOKEN=your-aws-session-token-if-using-temporary-credentials"; \
-		echo "  AWS_REGION=us-east-1"; \
-		echo "  AWS_ACCOUNT_ID=123456789012"; \
-		echo ""; \
-		exit 1; \
+# AWS environment validation - checks for required variables regardless of source
+AWS_ENV_CHECK = if [ "$$CI" = "true" ] || [ -n "$$AWS_ACCESS_KEY_ID" ]; then \
+		echo "$(GREEN)✅ CI/CD environment detected - using environment variables$(NC)"; \
+		if [ -z "$$NODE_ENV" ] || [ -z "$$AWS_ACCESS_KEY_ID" ] || [ -z "$$AWS_REGION" ]; then \
+			echo "$(RED)[ERROR]$(NC) Required environment variables missing in CI/CD!"; \
+			echo ""; \
+			echo "📋 Required environment variables:"; \
+			echo "  NODE_ENV (current: $$NODE_ENV)"; \
+			echo "  DATABASE_URL (current: $$DATABASE_URL)"; \
+			echo "  JWT_SECRET (current: *****)"; \
+			echo "  VPC_ID (current: $$VPC_ID)"; \
+			echo "  SUBNET_IDS (current: $$SUBNET_IDS)"; \
+			echo "  AWS_ACCESS_KEY_ID (current: $$AWS_ACCESS_KEY_ID)"; \
+			echo "  AWS_SECRET_ACCESS_KEY (current: *****)"; \
+			echo "  AWS_REGION (current: $$AWS_REGION)"; \
+			echo "  AWS_ACCOUNT_ID (current: $$AWS_ACCOUNT_ID)"; \
+			echo ""; \
+			exit 1; \
+		fi; \
+	else \
+		echo "$(BLUE)[INFO]$(NC) Local development - checking .env file..."; \
+		if [ ! -f .env ]; then \
+			echo "$(RED)[ERROR]$(NC) .env file not found!"; \
+			echo ""; \
+			echo "📋 Create a .env file with the following variables:"; \
+			echo "  NODE_ENV=production"; \
+			echo "  DATABASE_URL=postgresql://hackloumi:hackloumi@localhost:5432/hackloumi"; \
+			echo "  JWT_SECRET=your-jwt-secret-here"; \
+			echo "  VPC_ID=vpc-xxxxxxxxx"; \
+			echo "  SUBNET_IDS=subnet-xxxxxxx,subnet-yyyyyyy"; \
+			echo "  AWS_ACCESS_KEY_ID=your-aws-access-key"; \
+			echo "  AWS_SECRET_ACCESS_KEY=your-aws-secret-key"; \
+			echo "  AWS_SESSION_TOKEN=your-aws-session-token-if-using-temporary-credentials"; \
+			echo "  AWS_REGION=us-east-1"; \
+			echo "  AWS_ACCOUNT_ID=123456789012"; \
+			echo ""; \
+			exit 1; \
+		fi; \
 	fi
 
 # Default target
@@ -325,8 +358,8 @@ db-studio: ## Open Prisma Studio for database management
 	npx prisma studio
 
 # AWS Deployment commands
-set-vars-aws: ## Set AWS Terraform variables from .env file
-	@echo "$(BLUE)[INFO]$(NC) Setting AWS Terraform variables from .env file..."
+set-vars-aws: ## Set AWS Terraform variables (from .env locally or environment variables in CI/CD)
+	@echo "$(BLUE)[INFO]$(NC) Setting AWS Terraform variables..."
 	@$(AWS_ENV_CHECK) && \
 	$(AWS_ENV_SETUP) && \
 	echo "$(GREEN)✅ Terraform variables set successfully!$(NC)" && \
@@ -338,11 +371,13 @@ set-vars-aws: ## Set AWS Terraform variables from .env file
 	echo "  TF_VAR_vpc_id=$$VPC_ID" && \
 	echo "  TF_VAR_public_subnet_ids=[\"$$(echo $$SUBNET_IDS | sed 's/,/","/g')\"]" && \
 	echo "  TF_VAR_aws_region=$$AWS_REGION" && \
-	echo "  AWS_ACCESS_KEY_ID=****" && \
-	echo "  AWS_SECRET_ACCESS_KEY=****" && \
-	echo "  AWS_SESSION_TOKEN=****" && \
-	echo "  AWS_REGION=$$AWS_REGION" && \
-	echo "  AWS_ACCOUNT_ID=****" && \
+	if [ "$$CI" != "true" ] && [ -z "$$AWS_ACCESS_KEY_ID" ]; then \
+		echo "  AWS_ACCESS_KEY_ID=****" && \
+		echo "  AWS_SECRET_ACCESS_KEY=****" && \
+		echo "  AWS_SESSION_TOKEN=****" && \
+		echo "  AWS_REGION=$$AWS_REGION" && \
+		echo "  AWS_ACCOUNT_ID=****"; \
+	fi && \
 	echo "" && \
 	echo "🚀 Now you can run Terragrunt commands:" && \
 	echo "  cd terraform/ecr && terragrunt plan" && \

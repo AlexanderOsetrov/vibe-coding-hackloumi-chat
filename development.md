@@ -303,6 +303,67 @@ src/
 ✅ **POST `/api/messages`** persists message  
 ✅ **GET `/api/messages?peer=`** polls for new messages (simple polling implementation)
 
+## M2 Features Implemented
+
+✅ **Contact management system** with invitation workflow  
+✅ **Invite by username** functionality  
+✅ **Accept / reject invitation** workflow  
+✅ **Contacts shown in sidebar** sorted alphabetically
+
+## M3 Features Implemented
+
+✅ **Prisma migration adds `fts` column** (PostgreSQL _tsvector_)  
+✅ **GET `/api/search?q=`** returns ranked matches from both direct and group messages  
+✅ **Search bar with instant results** and navigation to both direct/group chats  
+✅ **Group message search** with proper member verification
+
+## M4 Features Implemented
+
+✅ **WebSocket realtime messaging** with Socket.IO  
+✅ **In‑memory queue** delivers messages to connected peers  
+✅ **Delivery ACK** updates message status to _delivered_  
+✅ **Fallback to polling** when WebSocket unsupported  
+✅ **Real-time typing indicators** for both direct and group chats  
+✅ **Online/offline status tracking** for contacts
+
+## M5 Features Implemented
+
+✅ **Groups table** (`id`, `name`, `owner_id`)  
+✅ **Group creation, management, and deletion** endpoints  
+✅ **Add / remove participants** with owner approval  
+✅ **Broadcast fan‑out** to all members over WebSocket  
+✅ **Group chat UI** with member management  
+✅ **Real-time group messaging** with proper room handling
+
+## M6 Features Implemented
+
+✅ **Local file upload** with `/api/upload` endpoint for image storage  
+✅ **Markdown parsing** for **bold** / _italic_ / `code` in both direct and group messages  
+✅ **LazyImage component** with lazy‑loading and loading states for message images  
+✅ **Image support** in both direct messages and group chats with real-time delivery  
+✅ **Image upload UI** with preview and metadata display  
+✅ **Mixed content support** (text + images in same message)
+
+## Additional Features Implemented
+
+✅ **Comprehensive error handling** and user feedback  
+✅ **TypeScript coverage** throughout the application  
+✅ **Test suite** with Vitest and Testing Library  
+✅ **Responsive design** with mobile-first approach  
+✅ **Modern UI/UX** with sophisticated black and white design system  
+✅ **Git repository management** with proper .gitignore for uploads  
+✅ **Development tooling** with ESLint, Prettier, and Husky
+
+## Known Limitations
+
+- No S3 integration yet (using local file storage)
+- No deep links implementation (M7)
+- No reactions or profiles (M8)
+- No performance harness (M9)
+- No production deployment setup (M10)
+
+These will be addressed in future milestones (M7-M10).
+
 ## API Endpoints
 
 - `POST /api/auth/register` - User registration
@@ -425,17 +486,6 @@ docker ps
 3. **Restart dev server** after environment changes
 4. **Use Prisma Studio** for database inspection: `make db-studio`
 5. **Keep Docker running** - The database container needs Docker to be active
-
-## Known Limitations (M1)
-
-- Simple polling instead of true long-polling
-- No contact management yet
-- No group chats
-- No file uploads
-- No search functionality
-- Basic UI without advanced features
-
-These will be addressed in future milestones (M2-M10).
 
 ## Production Deployment
 

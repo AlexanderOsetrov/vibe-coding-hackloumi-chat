@@ -1,6 +1,7 @@
 import * as argon2 from "argon2";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { NextRequest } from "next/server";
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "fallback-secret-key-change-in-production"
@@ -53,6 +54,40 @@ export async function getAuthUser(): Promise<{
   if (!token) return null;
 
   return await verifyJWT(token);
+}
+
+export async function verifyAuth(request: NextRequest): Promise<{
+  success: boolean;
+  userId?: string;
+  username?: string;
+}> {
+  try {
+    const cookieHeader = request.headers.get("cookie");
+    if (!cookieHeader) {
+      return { success: false };
+    }
+
+    // Parse the auth-token from cookies
+    const authTokenMatch = cookieHeader.match(/auth-token=([^;]+)/);
+    if (!authTokenMatch) {
+      return { success: false };
+    }
+
+    const token = authTokenMatch[1];
+    const payload = await verifyJWT(token);
+
+    if (!payload) {
+      return { success: false };
+    }
+
+    return {
+      success: true,
+      userId: payload.userId,
+      username: payload.username,
+    };
+  } catch {
+    return { success: false };
+  }
 }
 
 export async function setAuthCookie(token: string) {

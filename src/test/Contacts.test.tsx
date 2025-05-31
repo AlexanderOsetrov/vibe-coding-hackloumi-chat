@@ -34,6 +34,10 @@ describe("Contacts Feature", () => {
         .mockResolvedValueOnce({
           ok: true,
           json: () => Promise.resolve({ received: [], sent: [] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({}), // Mock online status API call
         });
 
       render(<ContactsSidebar currentUser={mockCurrentUser} />);
@@ -50,6 +54,10 @@ describe("Contacts Feature", () => {
         .mockResolvedValueOnce({
           ok: true,
           json: () => Promise.resolve({ received: [], sent: [] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({}), // Mock online status API call
         });
 
       render(<ContactsSidebar currentUser={mockCurrentUser} />);
@@ -90,6 +98,10 @@ describe("Contacts Feature", () => {
         .mockResolvedValueOnce({
           ok: true,
           json: () => Promise.resolve({ received: [], sent: [] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({}), // Mock online status API call
         });
 
       render(<ContactsSidebar currentUser={mockCurrentUser} />);
@@ -122,15 +134,21 @@ describe("Contacts Feature", () => {
           ok: true,
           json: () =>
             Promise.resolve({ received: mockReceivedInvitations, sent: [] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({}), // Mock online status API call
         });
 
       render(<ContactsSidebar currentUser={mockCurrentUser} />);
 
       await waitFor(() => {
-        expect(screen.getByText("PENDING INVITATIONS (1)")).toBeInTheDocument();
+        expect(
+          screen.getByText("RECEIVED INVITATIONS (1)")
+        ).toBeInTheDocument();
         expect(screen.getByText("sender1")).toBeInTheDocument();
         expect(screen.getByText("ACCEPT")).toBeInTheDocument();
-        expect(screen.getByText("REJECT")).toBeInTheDocument();
+        expect(screen.getByText("DECLINE")).toBeInTheDocument();
       });
     });
 
@@ -143,6 +161,10 @@ describe("Contacts Feature", () => {
         .mockResolvedValueOnce({
           ok: true,
           json: () => Promise.resolve({ received: [], sent: [] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({}), // Mock online status API call
         })
         .mockResolvedValueOnce({
           ok: true,
@@ -159,6 +181,10 @@ describe("Contacts Feature", () => {
         .mockResolvedValueOnce({
           ok: true,
           json: () => Promise.resolve({ received: [], sent: [] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({}), // Mock online status API call
         });
 
       render(<ContactsSidebar currentUser={mockCurrentUser} />);
@@ -205,6 +231,10 @@ describe("Contacts Feature", () => {
         })
         .mockResolvedValueOnce({
           ok: true,
+          json: () => Promise.resolve({}), // Mock online status API call
+        })
+        .mockResolvedValueOnce({
+          ok: true,
           json: () =>
             Promise.resolve({ message: "Invitation accepted successfully" }),
         })
@@ -215,6 +245,10 @@ describe("Contacts Feature", () => {
         .mockResolvedValueOnce({
           ok: true,
           json: () => Promise.resolve({ received: [], sent: [] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({}), // Mock online status API call
         });
 
       render(<ContactsSidebar currentUser={mockCurrentUser} />);

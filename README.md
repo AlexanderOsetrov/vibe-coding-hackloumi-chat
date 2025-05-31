@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="public/hackloumi-logo.png" alt="Hackloumi Chat Logo" width="200" />
+</div>
+
 # Hackloumi Chat 💬🚀
 
 A **modern, privacy‑respecting chat platform** built with **Next.js, Tailwind CSS, and TypeScript**. Hackloumi Chat delivers reliable 1‑to‑1 and group messaging, a sleek web experience, and a self‑contained deployment model that runs just as happily on a laptop as it does in the cloud.
@@ -226,7 +230,7 @@ Each milestone is released as its own pull request and Git tag. Tick the boxes t
 - [x] Vitest set up with a sample test
 - [x] GitHub Actions workflow: lint + test
 
-### M1 – Bare‑Minimum Chat 🔤
+### M1 – Bare‑Minimum Chat 🔤 ✅
 
 - [x] User registration form (username + password ×2)
 - [x] Password hashed with Argon2, stored in PostgreSQL
@@ -235,37 +239,38 @@ Each milestone is released as its own pull request and Git tag. Tick the boxes t
 - [x] **POST** `/api/messages` persists message
 - [x] **GET** `/api/messages?peer=` long‑polls for new messages
 
-### M2 – Contacts 🗂️
+### M2 – Contacts 🗂️ ✅
 
 - [x] Invite by username
 - [x] Accept / reject invitation workflow
 - [x] Contacts shown in sidebar sorted alphabetically
 
-### M3 – Persistent History + Search 🔍
+### M3 – Persistent History + Search 🔍 ✅
 
-- [ ] Prisma migration adds `fts` column (PostgreSQL _tsvector_)
-- [ ] **GET** `/api/search?q=` returns ranked matches
-- [ ] Search bar on top of chat list with instant results
+- [x] Prisma migration adds `fts` column (PostgreSQL _tsvector_)
+- [x] **GET** `/api/search?q=` returns ranked matches from both direct and group messages
+- [x] Search bar on top of chat list with instant results and navigation to both direct/group chats
 
-### M4 – WebSocket Realtime ⚡
+### M4 – WebSocket Realtime ⚡ ✅
 
-- [ ] Upgrade long‑poll to WebSocket handshake
-- [ ] In‑memory queue delivers message to connected peers
-- [ ] Delivery **ACK** updates message status to _delivered_
-- [ ] Fallback to polling when WebSocket unsupported
+- [x] Upgrade long‑poll to WebSocket handshake
+- [x] In‑memory queue delivers message to connected peers
+- [x] Delivery **ACK** updates message status to _delivered_
+- [x] Fallback to polling when WebSocket unsupported
 
-### M5 – Group Chats 👥
+### M5 – Group Chats 👥 ✅
 
-- [ ] `groups` table (`id`, `name`, `owner_id`)
-- [ ] Endpoints to create, rename, and delete rooms
-- [ ] Add / remove participants with owner approval
-- [ ] Broadcast fan‑out to all members over WebSocket
+- [x] `groups` table (`id`, `name`, `owner_id`)
+- [x] Endpoints to create, rename, and delete rooms
+- [x] Add / remove participants with owner approval
+- [x] Broadcast fan‑out to all members over WebSocket
 
-### M6 – Images & Formatting 🖼️
+### M6 – Images & Formatting 🖼️ ✅
 
-- [ ] S3 bucket + presigned **PUT** for uploads
-- [ ] Markdown parsing for **bold** / _italic_ / `code`
-- [ ] `<Image>` component lazy‑loads thumbnails
+- [x] Local file upload with `/api/upload` endpoint for image storage
+- [x] Markdown parsing for **bold** / _italic_ / `code` in both direct and group messages
+- [x] `<LazyImage>` component with lazy‑loading and loading states for message images
+- [x] Image support in both direct messages and group chats with real-time delivery
 
 ### M7 – Deep Links 🔗
 

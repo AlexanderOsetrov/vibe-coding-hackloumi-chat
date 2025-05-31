@@ -17,6 +17,8 @@ interface UseSocketOptions {
   onMessageSent?: (message: Message) => void;
   onMessageDelivered?: (messageId: string) => void;
   onTypingIndicator?: (data: { username: string; isTyping: boolean }) => void;
+  onUserOnline?: (data: { userId: string; username: string }) => void;
+  onUserOffline?: (data: { userId: string; username: string }) => void;
   onError?: (error: string) => void;
 }
 
@@ -25,6 +27,7 @@ interface UseSocketReturn {
   sendMessage: (content: string, receiverUsername: string) => void;
   startTyping: (receiverUsername: string) => void;
   stopTyping: (receiverUsername: string) => void;
+  checkUserOnline: (username: string) => void;
   connectionType: "websocket" | "polling" | "disconnected";
 }
 
@@ -43,13 +46,16 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
   const memoizedCallbacks = useRef(options);
   memoizedCallbacks.current = options;
 
-  const {
-    onNewMessage,
-    onMessageSent,
-    onMessageDelivered,
-    onTypingIndicator,
-    onError,
-  } = memoizedCallbacks.current;
+  // Note: These are commented out to avoid linter errors since they're accessed via memoizedCallbacks.current
+  // const {
+  //   onNewMessage,
+  //   onMessageSent,
+  //   onMessageDelivered,
+  //   onTypingIndicator,
+  //   onUserOnline,
+  //   onUserOffline,
+  //   onError,
+  // } = memoizedCallbacks.current;
 
   // Cleanup function
   const cleanup = useCallback(() => {
@@ -297,6 +303,30 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
           memoizedCallbacks.current.onError?.(data.error);
         });
 
+        // Online/offline status listeners
+        socket.on("user_online", (data: { userId: string; username: string }) => {
+          if (!isMountedRef.current) return;
+          console.log("🟢 USER CAME ONLINE:", data.username);
+          memoizedCallbacks.current.onUserOnline?.(data);
+        });
+
+        socket.on("user_offline", (data: { userId: string; username: string }) => {
+          if (!isMountedRef.current) return;
+          console.log("🔴 USER WENT OFFLINE:", data.username);
+          memoizedCallbacks.current.onUserOffline?.(data);
+        });
+
+        socket.on("user_online_status", (data: { userId: string; username: string; isOnline: boolean }) => {
+          if (!isMountedRef.current) return;
+          console.log("📍 USER STATUS CHECK:", data);
+          // We can use the existing callbacks for this
+          if (data.isOnline) {
+            memoizedCallbacks.current.onUserOnline?.(data);
+          } else {
+            memoizedCallbacks.current.onUserOffline?.(data);
+          }
+        });
+
         // Add connection test response handler
         socket.on("connection_test_response", (data) => {
           console.log("✅ Connection test successful:", data);
@@ -403,6 +433,13 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
     }
   }, [isConnected]);
 
+  // Check if a user is online
+  const checkUserOnline = useCallback((username: string) => {
+    if (socketRef.current?.connected && isConnected) {
+      socketRef.current.emit("check_user_online", { username });
+    }
+  }, [isConnected]);
+
   // Initialize on mount and cleanup on unmount - FIXED: removed dependencies that cause cycles
   useEffect(() => {
     isMountedRef.current = true;
@@ -420,6 +457,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
     sendMessage,
     startTyping,
     stopTyping,
+    checkUserOnline,
     connectionType,
   };
 } 

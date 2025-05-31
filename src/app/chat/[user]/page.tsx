@@ -31,6 +31,7 @@ function ChatUserPageContent() {
   const [error, setError] = useState("");
   const [typingUser, setTypingUser] = useState<string | null>(null);
   const [lastMessageCheck, setLastMessageCheck] = useState<Date>(new Date());
+  const [isPeerOnline, setIsPeerOnline] = useState<boolean>(false);
   const router = useRouter();
   const params = useParams();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -40,7 +41,7 @@ function ChatUserPageContent() {
   const peerUsername = params?.user as string;
 
   // Socket.IO hook with real-time messaging
-  const { sendMessage: sendSocketMessage, startTyping, stopTyping, connectionType, isConnected } = useSocket({
+  const { sendMessage: sendSocketMessage, startTyping, stopTyping, connectionType, isConnected, checkUserOnline } = useSocket({
     onNewMessage: (message) => {
       console.log("🎯 onNewMessage callback triggered:", message);
       console.log("Current user:", currentUser?.username);
@@ -145,6 +146,18 @@ function ChatUserPageContent() {
             setTypingUser(null);
           }, 3000);
         }
+      }
+    },
+    onUserOnline: (data) => {
+      console.log("🟢 User came online:", data.username);
+      if (data.username === peerUsername) {
+        setIsPeerOnline(true);
+      }
+    },
+    onUserOffline: (data) => {
+      console.log("🔴 User went offline:", data.username);
+      if (data.username === peerUsername) {
+        setIsPeerOnline(false);
       }
     },
     onError: (errorMessage) => {
@@ -263,6 +276,29 @@ function ChatUserPageContent() {
     }
   }, [currentUser, peerUsername, checkForNewMessages]);
 
+  // Check peer's online status when the chat loads
+  useEffect(() => {
+    if (peerUsername && isConnected) {
+      // Check online status via socket
+      checkUserOnline(peerUsername);
+      
+      // Also check via HTTP API as backup
+      const checkPeerStatus = async () => {
+        try {
+          const response = await fetch(`/api/users/${encodeURIComponent(peerUsername)}/online`);
+          if (response.ok) {
+            const data = await response.json();
+            setIsPeerOnline(data.isOnline);
+          }
+        } catch (error) {
+          console.error("Failed to check peer online status:", error);
+        }
+      };
+      
+      checkPeerStatus();
+    }
+  }, [peerUsername, isConnected, checkUserOnline]);
+
   useEffect(() => {
     if (!peerUsername) return;
     
@@ -361,6 +397,13 @@ function ChatUserPageContent() {
             <h1 className="text-lg font-light text-white tracking-wide">
               {peerUsername}
             </h1>
+            {/* Peer Online Status */}
+            <div className="flex items-center space-x-2">
+              <div className={`w-2 h-2 rounded-full ${isPeerOnline ? "bg-green-500" : "bg-zinc-500"}`}></div>
+              <span className="text-xs text-zinc-500">
+                {isPeerOnline ? "Online" : "Offline"}
+              </span>
+            </div>
           </div>
           
           <div className="flex items-center space-x-4">
@@ -388,7 +431,7 @@ function ChatUserPageContent() {
               </div>
             )}
             
-            {/* Connection Status Indicator */}
+            {/* Socket Connection Status Indicator */}
             <div className="flex items-center space-x-2 text-xs">
               <div className={`w-2 h-2 rounded-full ${
                 connectionType === "websocket" ? "bg-green-500" : 

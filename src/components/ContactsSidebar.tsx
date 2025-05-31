@@ -52,13 +52,15 @@ export default function ContactsSidebar({
   const [isSendingInvite, setIsSendingInvite] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [onlineStatus, setOnlineStatus] = useState<Record<string, boolean>>({});
   const router = useRouter();
 
   const loadData = async () => {
     try {
-      const [contactsRes, invitationsRes] = await Promise.all([
+      const [contactsRes, invitationsRes, onlineRes] = await Promise.all([
         fetch("/api/contacts"),
         fetch("/api/contacts/invitations"),
+        fetch("/api/contacts/online"),
       ]);
 
       if (contactsRes.ok) {
@@ -71,6 +73,15 @@ export default function ContactsSidebar({
         setReceivedInvitations(invitationsData.received || []);
         setSentInvitations(invitationsData.sent || []);
       }
+
+      if (onlineRes.ok) {
+        const onlineData = await onlineRes.json();
+        const statusMap: Record<string, boolean> = {};
+        onlineData.onlineStatus?.forEach((status: { username: string; isOnline: boolean }) => {
+          statusMap[status.username] = status.isOnline;
+        });
+        setOnlineStatus(statusMap);
+      }
     } catch (error) {
       console.error("Failed to load contacts/invitations:", error);
     } finally {
@@ -81,6 +92,25 @@ export default function ContactsSidebar({
   useEffect(() => {
     if (currentUser) {
       loadData();
+      
+      // Refresh online status every 30 seconds
+      const interval = setInterval(async () => {
+        try {
+          const response = await fetch("/api/contacts/online");
+          if (response.ok) {
+            const data = await response.json();
+            const statusMap: Record<string, boolean> = {};
+            data.onlineStatus?.forEach((status: { username: string; isOnline: boolean }) => {
+              statusMap[status.username] = status.isOnline;
+            });
+            setOnlineStatus(statusMap);
+          }
+        } catch (error) {
+          console.error("Failed to refresh online status:", error);
+        }
+      }, 30000);
+
+      return () => clearInterval(interval);
     }
   }, [currentUser]);
 
@@ -234,38 +264,6 @@ export default function ContactsSidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {/* Pending Received Invitations */}
-        {receivedInvitations.length > 0 && (
-          <div className="p-6 border-b border-zinc-900">
-            <h2 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-4">
-              PENDING INVITATIONS ({receivedInvitations.length})
-            </h2>
-            <div className="space-y-2">
-              {receivedInvitations.map((invitation) => (
-                <div key={invitation.id} className="invitation-card">
-                  <div className="text-sm font-light text-white mb-3">
-                    {invitation.sender?.username}
-                  </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleInvitation(invitation.id, "accept")}
-                      className="px-3 py-1 bg-white text-black text-xs font-medium rounded-sm hover:bg-zinc-200 transition-all duration-200"
-                    >
-                      ACCEPT
-                    </button>
-                    <button
-                      onClick={() => handleInvitation(invitation.id, "reject")}
-                      className="px-3 py-1 bg-zinc-800 text-white text-xs font-medium rounded-sm border border-zinc-700 hover:border-zinc-600 transition-all duration-200"
-                    >
-                      REJECT
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Contacts List */}
         <div className="p-6">
           <h2 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-4">
@@ -287,7 +285,11 @@ export default function ContactsSidebar({
                   }`}
                   onClick={() => startChat(contact.user.username)}
                 >
-                  <div className="flex-1">
+                  <div className="flex-1 flex items-center space-x-3">
+                    {/* Online Status Indicator */}
+                    <div className={`w-2 h-2 rounded-full ${
+                      onlineStatus[contact.user.username] ? "bg-green-500" : "bg-zinc-600"
+                    }`}></div>
                     <div className="text-sm font-light text-white">
                       {contact.user.username}
                     </div>
@@ -310,21 +312,62 @@ export default function ContactsSidebar({
 
         {/* Sent Invitations */}
         {sentInvitations.length > 0 && (
-          <div className="p-6 border-t border-zinc-900">
+          <div className="px-6 pb-6">
             <h2 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-4">
               SENT INVITATIONS ({sentInvitations.length})
             </h2>
             <div className="space-y-2">
               {sentInvitations.map((invitation) => (
-                <div
-                  key={invitation.id}
-                  className="flex items-center justify-between p-2 bg-zinc-900 rounded-sm border border-zinc-800"
-                >
-                  <div className="text-sm text-zinc-300 font-light">
-                    {invitation.receiver?.username}
+                <div key={invitation.id} className="invitation-card">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-light text-white">
+                        {invitation.receiver?.username || "Unknown User"}
+                      </div>
+                      <div className="text-xs text-zinc-500 uppercase tracking-wider">
+                        pending
+                      </div>
+                    </div>
+                    <div className="text-xs text-zinc-600">
+                      {new Date(invitation.createdAt).toLocaleDateString()}
+                    </div>
                   </div>
-                  <div className="text-xs text-zinc-500 uppercase tracking-wide">
-                    PENDING
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Received Invitations */}
+        {receivedInvitations.length > 0 && (
+          <div className="px-6 pb-6">
+            <h2 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-4">
+              RECEIVED INVITATIONS ({receivedInvitations.length})
+            </h2>
+            <div className="space-y-2">
+              {receivedInvitations.map((invitation) => (
+                <div key={invitation.id} className="invitation-card">
+                  <div className="mb-3">
+                    <div className="text-sm font-light text-white">
+                      {invitation.sender?.username || "Unknown User"}
+                    </div>
+                    <div className="text-xs text-zinc-600">
+                      {new Date(invitation.createdAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleInvitation(invitation.id, "accept")}
+                      className="btn-primary text-xs flex-1"
+                    >
+                      ACCEPT
+                    </button>
+                    <button
+                      onClick={() => handleInvitation(invitation.id, "reject")}
+                      className="btn-ghost text-xs flex-1"
+                    >
+                      DECLINE
+                    </button>
                   </div>
                 </div>
               ))}

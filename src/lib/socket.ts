@@ -49,7 +49,7 @@ export function initializeSocket(server: HTTPServer) {
     upgradeTimeout: 10000,
     maxHttpBufferSize: 1e6,
     connectTimeout: 20000,
-    allowRequest: (req, callback) => {
+    allowRequest: (_req, callback) => {
       // Allow all requests in development
       callback(null, true);
     },
@@ -125,6 +125,12 @@ export function initializeSocket(server: HTTPServer) {
       authSocket.join(`user:${authSocket.userId}`);
       console.log(`🏠 User ${authSocket.username} joined room: user:${authSocket.userId}`);
 
+      // Broadcast to all connected users that this user is now online
+      authSocket.broadcast.emit("user_online", {
+        userId: authSocket.userId,
+        username: authSocket.username,
+      });
+
       // Deliver any queued messages
       deliverQueuedMessages(authSocket.userId);
 
@@ -137,6 +143,23 @@ export function initializeSocket(server: HTTPServer) {
           userId: authSocket.userId,
           socketId: authSocket.id 
         });
+      });
+
+      // Handle online status check
+      authSocket.on("check_user_online", (data: { username: string }) => {
+        prisma.user.findUnique({
+          where: { username: data.username },
+          select: { id: true, username: true },
+        }).then((user) => {
+          if (user) {
+            const isOnline = connectedUsers.has(user.id);
+            authSocket.emit("user_online_status", {
+              userId: user.id,
+              username: user.username,
+              isOnline,
+            });
+          }
+        }).catch(console.error);
       });
 
       // Handle message sending
@@ -180,6 +203,12 @@ export function initializeSocket(server: HTTPServer) {
         // Clean up user connections
         if (authSocket.userId) {
           connectedUsers.delete(authSocket.userId);
+          
+          // Broadcast to all connected users that this user is now offline
+          authSocket.broadcast.emit("user_offline", {
+            userId: authSocket.userId,
+            username: authSocket.username,
+          });
         }
         userSockets.delete(authSocket.id);
         

@@ -10,7 +10,7 @@ inputs:
   opentofu-version:
     description: 'Version of OpenTofu to install'
     required: false
-    default: 'v1.6.1'
+    default: 'v1.9.1'
 
 runs:
   using: 'composite'

@@ -248,8 +248,8 @@ Each milestone is released as its own pull request and Git tag. Tick the boxes t
 ### M3 – Persistent History + Search 🔍 ✅
 
 - [x] Prisma migration adds `fts` column (PostgreSQL _tsvector_)
-- [x] **GET** `/api/search?q=` returns ranked matches
-- [x] Search bar on top of chat list with instant results
+- [x] **GET** `/api/search?q=` returns ranked matches from both direct and group messages
+- [x] Search bar on top of chat list with instant results and navigation to both direct/group chats
 
 ### M4 – WebSocket Realtime ⚡ ✅
 
@@ -265,11 +265,12 @@ Each milestone is released as its own pull request and Git tag. Tick the boxes t
 - [x] Add / remove participants with owner approval
 - [x] Broadcast fan‑out to all members over WebSocket
 
-### M6 – Images & Formatting 🖼️
+### M6 – Images & Formatting 🖼️ ✅
 
-- [ ] S3 bucket + presigned **PUT** for uploads
-- [ ] Markdown parsing for **bold** / _italic_ / `code`
-- [ ] `<Image>` component lazy‑loads thumbnails
+- [x] Local file upload with `/api/upload` endpoint for image storage
+- [x] Markdown parsing for **bold** / _italic_ / `code` in both direct and group messages
+- [x] `<LazyImage>` component with lazy‑loading and loading states for message images
+- [x] Image support in both direct messages and group chats with real-time delivery
 
 ### M7 – Deep Links 🔗
 

@@ -8,13 +8,18 @@ interface SearchResult {
   content: string;
   createdAt: string;
   rank: number;
+  type: 'direct' | 'group';
   sender: {
     id: string;
     username: string;
   };
-  receiver: {
+  receiver?: {
     id: string;
     username: string;
+  };
+  group?: {
+    id: string;
+    name: string;
   };
   conversationWith: string;
 }
@@ -93,7 +98,14 @@ export default function SearchBar({ currentUser }: SearchBarProps) {
   const handleResultClick = (result: SearchResult) => {
     setIsOpen(false);
     setQuery("");
-    router.push(`/chat/${result.conversationWith}`);
+    
+    if (result.type === 'group') {
+      // Navigate to group chat
+      router.push(`/chat/group/${result.group?.id}`);
+    } else {
+      // Navigate to direct chat
+      router.push(`/chat/${result.conversationWith}`);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -130,6 +142,42 @@ export default function SearchBar({ currentUser }: SearchBarProps) {
         </mark>
       ) : part
     );
+  };
+
+  const getResultTypeIcon = (type: 'direct' | 'group') => {
+    if (type === 'group') {
+      return (
+        <svg
+          className="w-3 h-3 text-zinc-500"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+          />
+        </svg>
+      );
+    } else {
+      return (
+        <svg
+          className="w-3 h-3 text-zinc-500"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+          />
+        </svg>
+      );
+    }
   };
 
   return (
@@ -189,8 +237,16 @@ export default function SearchBar({ currentUser }: SearchBarProps) {
               className="p-3 hover:bg-zinc-900 cursor-pointer border-b border-zinc-900 last:border-b-0 transition-all duration-200"
             >
               <div className="flex items-start justify-between mb-2">
-                <div className="text-xs text-zinc-400 uppercase tracking-wider">
-                  {result.conversationWith}
+                <div className="flex items-center space-x-2">
+                  {getResultTypeIcon(result.type)}
+                  <div className="text-xs text-zinc-400 uppercase tracking-wider">
+                    {result.type === 'group' ? `# ${result.conversationWith}` : result.conversationWith}
+                  </div>
+                  {result.type === 'group' && (
+                    <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded">
+                      GROUP
+                    </span>
+                  )}
                 </div>
                 <div className="text-xs text-zinc-500">
                   {formatDate(result.createdAt)}
@@ -201,6 +257,7 @@ export default function SearchBar({ currentUser }: SearchBarProps) {
               </div>
               <div className="mt-2 text-xs text-zinc-600">
                 From: {result.sender.username === currentUser?.username ? "You" : result.sender.username}
+                {result.type === 'group' && ` in ${result.group?.name}`}
               </div>
             </div>
           ))}
@@ -208,6 +265,9 @@ export default function SearchBar({ currentUser }: SearchBarProps) {
           {results.length > 0 && (
             <div className="p-2 text-xs text-zinc-600 text-center border-t border-zinc-800">
               {results.length} result{results.length !== 1 ? 's' : ''} found
+              {results.some(r => r.type === 'direct') && results.some(r => r.type === 'group') && 
+                ` (${results.filter(r => r.type === 'direct').length} direct, ${results.filter(r => r.type === 'group').length} group)`
+              }
             </div>
           )}
         </div>

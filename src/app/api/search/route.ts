@@ -36,9 +36,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Search messages where the user is either sender or receiver
-    // Using PostgreSQL full-text search with ranking
-    const results = await prisma.$queryRaw<Array<{
+    // Search direct messages where the user is either sender or receiver
+    const directMessagesResults = await prisma.$queryRaw<Array<{
       id: string;
       content: string;
       createdAt: Date;
@@ -47,6 +46,7 @@ export async function GET(request: NextRequest) {
       receiverId: string;
       receiverUsername: string;
       rank: number;
+      type: string;
     }>>`
       SELECT 
         m.id,
@@ -56,41 +56,106 @@ export async function GET(request: NextRequest) {
         sender.username as "senderUsername",
         receiver.id as "receiverId", 
         receiver.username as "receiverUsername",
-        ts_rank(m.fts, plainto_tsquery('english', ${searchQuery})) as rank
+        ts_rank(m.fts, plainto_tsquery('english', ${searchQuery})) as rank,
+        'direct' as type
       FROM messages m
       JOIN users sender ON m."senderId" = sender.id
       JOIN users receiver ON m."receiverId" = receiver.id
       WHERE 
         (m."senderId" = ${authUser.userId} OR m."receiverId" = ${authUser.userId})
+        AND m."receiverId" IS NOT NULL
         AND m.fts @@ plainto_tsquery('english', ${searchQuery})
       ORDER BY rank DESC, m."createdAt" DESC
-      LIMIT 50
+      LIMIT 25
     `;
 
-    // Format the results
-    const formattedResults = results.map((result) => ({
-      id: result.id,
-      content: result.content,
-      createdAt: result.createdAt,
-      rank: parseFloat(result.rank.toString()),
-      sender: {
-        id: result.senderId,
-        username: result.senderUsername,
-      },
-      receiver: {
-        id: result.receiverId,
-        username: result.receiverUsername,
-      },
-      // Determine the conversation partner
-      conversationWith: result.senderId === authUser.userId 
-        ? result.receiverUsername 
-        : result.senderUsername,
-    }));
+    // Search group messages where the user is a member
+    const groupMessagesResults = await prisma.$queryRaw<Array<{
+      id: string;
+      content: string;
+      createdAt: Date;
+      senderId: string;
+      senderUsername: string;
+      groupId: string;
+      groupName: string;
+      rank: number;
+      type: string;
+    }>>`
+      SELECT 
+        m.id,
+        m.content,
+        m."createdAt",
+        sender.id as "senderId",
+        sender.username as "senderUsername",
+        g.id as "groupId",
+        g.name as "groupName",
+        ts_rank(m.fts, plainto_tsquery('english', ${searchQuery})) as rank,
+        'group' as type
+      FROM messages m
+      JOIN users sender ON m."senderId" = sender.id
+      JOIN groups g ON m."groupId" = g.id
+      JOIN group_members gm ON g.id = gm."groupId"
+      WHERE 
+        gm."userId" = ${authUser.userId}
+        AND m."groupId" IS NOT NULL
+        AND m.fts @@ plainto_tsquery('english', ${searchQuery})
+      ORDER BY rank DESC, m."createdAt" DESC
+      LIMIT 25
+    `;
+
+    // Combine and sort results by rank
+    const allResults = [
+      ...directMessagesResults.map((result) => ({
+        id: result.id,
+        content: result.content,
+        createdAt: result.createdAt,
+        rank: parseFloat(result.rank.toString()),
+        type: 'direct' as const,
+        sender: {
+          id: result.senderId,
+          username: result.senderUsername,
+        },
+        receiver: {
+          id: result.receiverId,
+          username: result.receiverUsername,
+        },
+        // Determine the conversation partner
+        conversationWith: result.senderId === authUser.userId 
+          ? result.receiverUsername 
+          : result.senderUsername,
+      })),
+      ...groupMessagesResults.map((result) => ({
+        id: result.id,
+        content: result.content,
+        createdAt: result.createdAt,
+        rank: parseFloat(result.rank.toString()),
+        type: 'group' as const,
+        sender: {
+          id: result.senderId,
+          username: result.senderUsername,
+        },
+        group: {
+          id: result.groupId,
+          name: result.groupName,
+        },
+        conversationWith: result.groupName,
+      }))
+    ];
+
+    // Sort by rank (highest first) and then by date (newest first)
+    const sortedResults = allResults
+      .sort((a, b) => {
+        if (b.rank !== a.rank) {
+          return b.rank - a.rank;
+        }
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      })
+      .slice(0, 50); // Limit total results
 
     return NextResponse.json({
-      results: formattedResults,
+      results: sortedResults,
       query: searchQuery,
-      count: formattedResults.length,
+      count: sortedResults.length,
     });
 
   } catch (error) {

@@ -1,8 +1,7 @@
 name: CI/CD Pipeline
 
 on:
-  push:
-    branches: [ master, M10/infrastructure-and-deployment ]
+  workflow_dispatch:  # Manual trigger only
 
 env:
   NODE_ENV: ${{ vars.NODE_ENV }}

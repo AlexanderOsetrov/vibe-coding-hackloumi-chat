@@ -16,4 +16,9 @@ variable "environment" {
   description = "Environment name (e.g., dev, staging, production)"
   type        = string
   default     = "production"
+}
+
+variable "owner" {
+  description = "Owner of the resources (email address)"
+  type        = string
 } 

@@ -30,6 +30,11 @@ variable "environment" {
   default     = "production"
 }
 
+variable "owner" {
+  description = "Owner of the resources (email address)"
+  type        = string
+}
+
 variable "node_env" {
   description = "Node.js environment (development, production, etc.)"
   type        = string
@@ -74,4 +79,17 @@ variable "jwt_secret" {
   description = "JWT secret for token signing"
   type        = string
   sensitive   = true
+}
+
+# SSL/TLS variables
+variable "enable_ssl" {
+  description = "Whether to enable SSL/TLS for the load balancer"
+  type        = bool
+  default     = false
+}
+
+variable "ssl_certificate_arn" {
+  description = "ARN of the SSL certificate for HTTPS listener (required if enable_ssl is true)"
+  type        = string
+  default     = ""
 }

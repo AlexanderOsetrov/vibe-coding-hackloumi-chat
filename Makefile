@@ -26,6 +26,7 @@ AWS_ENV_SETUP = if [ "$$CI" = "true" ] || [ -n "$$AWS_ACCESS_KEY_ID" ]; then \
 		export TF_VAR_vpc_id="$$VPC_ID"; \
 		export TF_VAR_public_subnet_ids="[\"$$(echo $$SUBNET_IDS | sed 's/,/","/g')\"]"; \
 		export TF_VAR_aws_region="$$AWS_REGION"; \
+		export TF_VAR_owner="$$OWNER"; \
 	else \
 		echo "$(BLUE)[INFO]$(NC) Loading from .env file (local development)..."; \
 		set -a && . ./.env && set +a; \
@@ -35,6 +36,7 @@ AWS_ENV_SETUP = if [ "$$CI" = "true" ] || [ -n "$$AWS_ACCESS_KEY_ID" ]; then \
 		export TF_VAR_vpc_id="$$VPC_ID"; \
 		export TF_VAR_public_subnet_ids="[\"$$(echo $$SUBNET_IDS | sed 's/,/","/g')\"]"; \
 		export TF_VAR_aws_region="$$AWS_REGION"; \
+		export TF_VAR_owner="$$OWNER"; \
 		export AWS_ACCESS_KEY_ID="$$AWS_ACCESS_KEY_ID"; \
 		export AWS_SECRET_ACCESS_KEY="$$AWS_SECRET_ACCESS_KEY"; \
 		export AWS_SESSION_TOKEN="$$AWS_SESSION_TOKEN"; \
@@ -45,7 +47,7 @@ AWS_ENV_SETUP = if [ "$$CI" = "true" ] || [ -n "$$AWS_ACCESS_KEY_ID" ]; then \
 # AWS environment validation - checks for required variables regardless of source
 AWS_ENV_CHECK = if [ "$$CI" = "true" ] || [ -n "$$AWS_ACCESS_KEY_ID" ]; then \
 		echo "$(GREEN)✅ CI/CD environment detected - using environment variables$(NC)"; \
-		if [ -z "$$NODE_ENV" ] || [ -z "$$AWS_ACCESS_KEY_ID" ] || [ -z "$$AWS_REGION" ]; then \
+		if [ -z "$$NODE_ENV" ] || [ -z "$$AWS_ACCESS_KEY_ID" ] || [ -z "$$AWS_REGION" ] || [ -z "$$OWNER" ]; then \
 			echo "$(RED)[ERROR]$(NC) Required environment variables missing in CI/CD!"; \
 			echo ""; \
 			echo "📋 Required environment variables:"; \
@@ -58,6 +60,7 @@ AWS_ENV_CHECK = if [ "$$CI" = "true" ] || [ -n "$$AWS_ACCESS_KEY_ID" ]; then \
 			echo "  AWS_SECRET_ACCESS_KEY (current: *****)"; \
 			echo "  AWS_REGION (current: $$AWS_REGION)"; \
 			echo "  AWS_ACCOUNT_ID (current: $$AWS_ACCOUNT_ID)"; \
+			echo "  OWNER (current: $$OWNER)"; \
 			echo ""; \
 			exit 1; \
 		fi; \
@@ -77,6 +80,7 @@ AWS_ENV_CHECK = if [ "$$CI" = "true" ] || [ -n "$$AWS_ACCESS_KEY_ID" ]; then \
 			echo "  AWS_SESSION_TOKEN=your-aws-session-token-if-using-temporary-credentials"; \
 			echo "  AWS_REGION=us-east-1"; \
 			echo "  AWS_ACCOUNT_ID=123456789012"; \
+			echo "  OWNER=your.email@company.com"; \
 			echo ""; \
 			exit 1; \
 		fi; \
@@ -371,6 +375,7 @@ set-vars-aws: ## Set AWS Terraform variables (from .env locally or environment v
 	echo "  TF_VAR_vpc_id=$$VPC_ID" && \
 	echo "  TF_VAR_public_subnet_ids=[\"$$(echo $$SUBNET_IDS | sed 's/,/","/g')\"]" && \
 	echo "  TF_VAR_aws_region=$$AWS_REGION" && \
+	echo "  TF_VAR_owner=$$OWNER" && \
 	if [ "$$CI" != "true" ] && [ -z "$$AWS_ACCESS_KEY_ID" ]; then \
 		echo "  AWS_ACCESS_KEY_ID=****" && \
 		echo "  AWS_SECRET_ACCESS_KEY=****" && \

@@ -25,10 +25,27 @@ output "cloudwatch_log_group" {
   value       = aws_cloudwatch_log_group.app.name
 }
 
+# Load Balancer outputs
+output "load_balancer_dns_name" {
+  description = "DNS name of the load balancer"
+  value       = aws_lb.main.dns_name
+}
+
+output "load_balancer_url" {
+  description = "URL to access the application"
+  value       = var.enable_ssl ? "https://${aws_lb.main.dns_name}" : "http://${aws_lb.main.dns_name}"
+}
+
+output "load_balancer_zone_id" {
+  description = "Zone ID of the load balancer"
+  value       = aws_lb.main.zone_id
+}
+
 output "security_groups" {
   description = "Security group IDs"
   value = {
     ecs_tasks = aws_security_group.ecs_tasks.id
+    alb       = aws_security_group.alb.id
   }
 }
 
@@ -41,11 +58,12 @@ output "deployment_info" {
     ecs_cluster   = aws_ecs_cluster.main.name
     ecs_service   = aws_ecs_service.app.name
     database      = "containerized-postgresql"
-    access_type   = "direct-ecs-with-public-ip"
+    access_type   = "application-load-balancer"
+    ssl_enabled   = var.enable_ssl
   }
 }
 
 output "application_access" {
   description = "How to access the application"
-  value = "Application will be accessible via the public IP of the ECS task on port 3000. Use AWS CLI: aws ecs list-tasks --cluster ${aws_ecs_cluster.main.name} --service-name ${aws_ecs_service.app.name} to find the task, then describe-tasks to get the public IP."
+  value = "Application is accessible via the Application Load Balancer at: ${var.enable_ssl ? "https://" : "http://"}${aws_lb.main.dns_name}"
 } 

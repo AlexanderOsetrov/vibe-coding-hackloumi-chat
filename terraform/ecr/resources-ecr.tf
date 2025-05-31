@@ -12,7 +12,7 @@ resource "aws_ecr_repository" "hackloumi_chat" {
   tags = {
     Project     = var.app_name
     Environment = var.environment
-    Owner       = "alexander.osetrov@dataart.com"
+    Owner       = var.owner
   }
 }
 
@@ -24,12 +24,25 @@ resource "aws_ecr_lifecycle_policy" "hackloumi_chat" {
     rules = [
       {
         rulePriority = 1
-        description  = "Keep last 10 images"
+        description  = "Keep last 30 images"
         selection = {
           tagStatus     = "tagged"
           tagPrefixList = ["v"]
           countType     = "imageCountMoreThan"
-          countNumber   = 10
+          countNumber   = 30
+        }
+        action = {
+          type = "expire"
+        }
+      },
+      {
+        rulePriority = 2
+        description  = "Delete untagged images older than 1 day"
+        selection = {
+          tagStatus   = "untagged"
+          countType   = "sinceImagePushed"
+          countUnit   = "days"
+          countNumber = 1
         }
         action = {
           type = "expire"

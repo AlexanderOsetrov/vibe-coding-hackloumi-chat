@@ -32,6 +32,7 @@ inputs = {
   # Application variables
   app_name    = get_env("TF_VAR_app_name", "hackloumi-chat")
   environment = get_env("TF_VAR_environment", "production")
+  owner       = get_env("TF_VAR_owner")
   node_env    = get_env("TF_VAR_node_env", "production")
   
   # Container configuration
@@ -69,7 +70,7 @@ provider "aws" {
   default_tags {
     tags = {
       Project = var.app_name
-      Owner   = "alexander.osetrov@dataart.com"
+      Owner   = var.owner
     }
   }
 }

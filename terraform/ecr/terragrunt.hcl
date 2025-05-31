@@ -15,6 +15,7 @@ inputs = {
   aws_region  = get_env("TF_VAR_aws_region", "us-east-1")
   app_name    = get_env("TF_VAR_app_name", "hackloumi-chat")
   environment = get_env("TF_VAR_environment", "production")
+  owner       = get_env("TF_VAR_owner")
 }
 
 # Generate provider configuration
@@ -39,7 +40,7 @@ provider "aws" {
   default_tags {
     tags = {
       Project = var.app_name
-      Owner   = "alexander.osetrov@dataart.com"
+      Owner   = var.owner
     }
   }
 }

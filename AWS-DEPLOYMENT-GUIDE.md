@@ -2,74 +2,100 @@
 
 ## 🎯 **Overview**
 
-This document provides a complete guide for deploying Hackloumi Chat to AWS using **Terragrunt** with a simplified, cost-effective architecture that remains cloud-agnostic and reuses existing VPC infrastructure.
+This document provides a complete guide for deploying Hackloumi Chat to AWS using **Terragrunt** with a production-ready architecture that includes Application Load Balancer, auto-scaling capabilities, and proper security configurations.
 
-## 🏗️ **Simplified Architecture** (Current Implementation)
+## 🏗️ **Production Architecture** (Current Implementation)
 
-This simplified approach eliminates complex components while maintaining production readiness for development/demo use:
+Our current implementation provides a scalable, production-ready architecture:
 
-- ✅ **Direct ECS Access**: No load balancer required
-- ✅ **Containerized Database**: PostgreSQL as sidecar container
-- ✅ **Public Subnets Only**: Simplified networking
-- ✅ **Terragrunt Modules**: ECR and App infrastructure separated
-- ✅ **Cost Optimized**: ~$15/month vs $50+/month
+- ✅ **Application Load Balancer**: Professional HTTP/HTTPS access with health checks
+- ✅ **ECS Fargate**: Containerized application with auto-scaling capabilities
+- ✅ **Containerized Database**: PostgreSQL as embedded container (with RDS option)
+- ✅ **Security Groups**: Proper network isolation with ALB → ECS traffic flow
+- ✅ **SSL/TLS Support**: Configurable HTTPS with certificate management
+- ✅ **Terragrunt Modules**: ECR and App infrastructure properly separated
+- ✅ **Cost Optimized**: ~$25-35/month for production-ready setup
 
-## 🏗️ **Core AWS Resources** (Minimal Set)
+## 🏗️ **Core AWS Resources** (Production Set)
 
-### 1. **Container Orchestration** (Cloud-Agnostic)
+### 1. **Load Balancer & Networking**
 
 ```hcl
-# ECS Fargate Service (can be replaced with GCP Cloud Run / Azure Container Instances)
-- ECS Cluster (Fargate mode)
-- ECS Task Definition (with containerized PostgreSQL)
-- ECS Service with 1 task for demo/dev use
+# Application Load Balancer (Production Traffic Management)
+- Application Load Balancer (ALB) with health checks
+- Target Group for ECS service routing
+- HTTP Listener (with HTTPS redirect when SSL enabled)
+- HTTPS Listener (when SSL certificate provided)
+- Security Group for ALB (ports 80/443)
+```
+
+### 2. **Container Orchestration** (Scalable)
+
+```hcl
+# ECS Fargate Service (Auto-scaling Ready)
+- ECS Cluster with Container Insights
+- ECS Task Definition (ARM64 Graviton2 optimized)
+- ECS Service with load balancer integration
+- Auto-scaling target and policies (configurable)
 - Task execution role for ECR/CloudWatch access
-- ECS tasks run in public subnets with direct internet access
 ```
 
-### 2. **Database** (Containerized - Cloud-Agnostic)
+### 3. **Database Options** (Flexible)
 
 ```hcl
-# Containerized PostgreSQL (can run on any cloud container service)
+# Option 1: Containerized PostgreSQL (Default)
 - PostgreSQL 16 container as sidecar
-- No managed database service required
-- Data persists within container lifecycle
-- Connection: postgresql://hackloumi:hackloumi@localhost:5432/hackloumi
+- No additional AWS costs
+- Good for development and small production workloads
+
+# Option 2: Amazon RDS (Optional, can be enabled)
+- RDS PostgreSQL with automated backups
+- Multi-AZ deployment option
+- Enhanced monitoring and performance insights
 ```
 
-### 3. **Container Registry** (Cloud-Agnostic)
+### 4. **Container Registry** (Secure)
 
 ```hcl
-# ECR Repository (can be replaced with GCP Artifact Registry / Azure ACR)
+# ECR Repository with Lifecycle Management
 - ECR Private Repository for hackloumi-chat
-- Lifecycle policy to manage image retention
+- Lifecycle policy (keep 30 tagged, 1 day untagged)
+- Image vulnerability scanning enabled
 ```
 
-### 4. **Networking** (Simplified - Reusing Your Infrastructure)
+### 5. **Networking** (Secure & Scalable)
 
 ```hcl
-# Using your existing VPC and public subnets only
-- Your existing VPC ID
-- Your existing public subnets (for ECS tasks with direct access)
-- Internet Gateway (assuming already exists)
-- Security group allowing port 3000 access from internet
+# VPC Integration (Existing or New)
+- Option to use existing VPC infrastructure
+- Option to create new VPC with public/private subnets
+- Internet Gateway and NAT Gateway support
+- VPC Endpoints for AWS services (optional)
 ```
 
-### 5. **Security & IAM** (Minimal)
+### 6. **Security & IAM** (Comprehensive)
 
 ```hcl
-# Essential IAM roles only
+# Production Security Setup
 - ECS Task Execution Role (ECR + CloudWatch access)
-- ECS Task Role (basic application permissions)
-- Security Group (ECS direct access on port 3000)
+- ECS Task Role (application permissions)
+- RDS Enhanced Monitoring Role (if RDS enabled)
+- Security Groups with proper isolation:
+  - ALB Security Group (internet → ALB)
+  - ECS Security Group (ALB → ECS)
+  - RDS Security Group (ECS → RDS, if enabled)
 ```
 
-### 6. **Monitoring** (Basic)
+### 7. **Monitoring & Scaling** (Production-Ready)
 
 ```hcl
-# CloudWatch Logs (can be replaced with any logging service)
-- CloudWatch Log Group for application logs
+# CloudWatch & Auto-scaling
+- CloudWatch Log Groups for application logs
 - ECS Container Insights enabled
+- Auto-scaling policies:
+  - CPU utilization targeting
+  - Memory utilization targeting
+  - Request count per target targeting
 ```
 
 ## 🔧 **Infrastructure as Code** (Terragrunt Implementation)
@@ -77,24 +103,29 @@ This simplified approach eliminates complex components while maintaining product
 ### Terragrunt Structure (Current)
 
 ```hcl
-# Modular Terragrunt setup with separate ECR and App modules
+# Modular Terragrunt setup with comprehensive infrastructure
 ├── terraform/
 │   ├── state.hcl                  # Shared state configuration
 │   ├── ecr/                       # ECR repository module
 │   │   ├── terragrunt.hcl         # ECR module config
-│   │   ├── main.tf                # ECR resources
+│   │   ├── main.tf                # ECR provider setup
 │   │   ├── variables.tf           # ECR variables
 │   │   ├── outputs.tf             # ECR outputs
 │   │   └── resources-ecr.tf       # Container registry
 │   └── app/                       # Application module
 │       ├── terragrunt.hcl         # App module config with ECR dependency
-│       ├── main.tf                # App resources
-│       ├── variables.tf           # App variables
-│       ├── outputs.tf             # App outputs
+│       ├── main.tf                # App provider setup
+│       ├── variables.tf           # App variables (extensive)
+│       ├── outputs.tf             # App outputs (including ALB URL)
+│       ├── data.tf                # Data sources
+│       ├── resources-alb.tf       # Application Load Balancer
 │       ├── resources-ecs.tf       # ECS cluster, tasks, service
+│       ├── resources-sg.tf        # Security groups (ALB + ECS)
+│       ├── resources-iam.tf       # IAM roles & policies
 │       ├── resources-cloudwatch.tf # Logging
-│       ├── resources-sg.tf        # Security groups
-│       └── resources-iam.tf       # IAM roles & policies
+│       ├── resources-rds.tf       # RDS PostgreSQL (optional)
+│       ├── resources-autoscaling.tf # Auto-scaling policies
+│       └── resources-vpc.tf       # VPC creation (optional)
 ```
 
 ### Makefile Integration (Complete Automation)
@@ -107,48 +138,50 @@ make plan-app-aws        # Plan application infrastructure only
 
 # 🚀 Deployment
 make deploy-ecr-aws      # Deploy ECR repository
-make build-aws           # Build Docker image for AWS
+make build-aws           # Build Docker image for AWS (ARM64)
 make push-aws            # Push Docker image to ECR
 make deploy-app-aws      # Deploy application infrastructure
 make deploy-aws          # Full pipeline (ECR → build → push → app)
 
 # 💥 Destruction
-make destroy-ecr-aws     # Destroy ECR repository only
 make destroy-app-aws     # Destroy application infrastructure only
+make destroy-ecr-aws     # Destroy ECR repository only
 ```
 
-## 💰 **Cost Estimation (Monthly)** - **Simplified Architecture**
+## 💰 **Cost Estimation (Monthly)** - **Production Architecture**
 
-| Resource        | Type          | Quantity     | Monthly Cost      |
-| --------------- | ------------- | ------------ | ----------------- |
-| ECS Fargate     | 0.5 vCPU, 1GB | 1 task       | ~$15              |
-| ECR Repository  | Storage       | <1GB         | ~$0.10            |
-| CloudWatch Logs | Ingestion     | ~100MB/month | ~$0.50            |
-| Data Transfer   | Outbound      | 1GB/month    | ~$0.50            |
-| **Total**       |               |              | **~$15-16/month** |
+| Resource                     | Type          | Quantity     | Monthly Cost   |
+| ---------------------------- | ------------- | ------------ | -------------- |
+| Application Load Balancer    | ALB           | 1            | ~$16           |
+| ECS Fargate                  | 0.5 vCPU, 1GB | 1 task       | ~$15           |
+| ECR Repository               | Storage       | <1GB         | ~$0.10         |
+| CloudWatch Logs              | Ingestion     | ~500MB/month | ~$2.50         |
+| Data Transfer                | Outbound      | 5GB/month    | ~$2.50         |
+| **Total (Containerized DB)** |               |              | **~$36/month** |
+| **+ RDS (if enabled)**       | db.t3.micro   | 1 instance   | **+$15/month** |
 
-**Cost Savings vs Original Plan:**
+### Cost Scaling Options
 
-- ❌ No RDS PostgreSQL: **-$15/month**
-- ❌ No Application Load Balancer: **-$20/month**
-- ❌ No SSL Certificate management: **-$0/month**
-- ✅ **Total Savings: ~$35/month (70% reduction)**
+- **Development**: ~$36/month (containerized DB)
+- **Small Production**: ~$51/month (with RDS)
+- **Auto-scaling**: Costs scale with actual usage
 
-## 🌐 **Cloud-Agnostic Equivalents**
+## 🌐 **Cloud-Agnostic Design**
 
-| AWS Service     | GCP Equivalent    | Azure Equivalent    | Generic Alternative |
-| --------------- | ----------------- | ------------------- | ------------------- |
-| ECS Fargate     | Cloud Run         | Container Instances | Docker/K8s          |
-| ECR             | Artifact Registry | Container Registry  | Docker Hub          |
-| CloudWatch Logs | Cloud Logging     | Azure Monitor       | ELK Stack           |
-| IAM Roles       | Service Accounts  | Managed Identity    | RBAC                |
+| AWS Service    | GCP Equivalent    | Azure Equivalent    | Generic Alternative |
+| -------------- | ----------------- | ------------------- | ------------------- |
+| ALB            | Load Balancer     | Application Gateway | Nginx/HAProxy       |
+| ECS Fargate    | Cloud Run         | Container Instances | Docker/K8s          |
+| RDS PostgreSQL | Cloud SQL         | Azure Database      | PostgreSQL cluster  |
+| ECR            | Artifact Registry | Container Registry  | Docker Hub          |
+| CloudWatch     | Cloud Logging     | Azure Monitor       | ELK Stack           |
 
 ## 📋 **Prerequisites**
 
 1. **AWS Account**: Active AWS account with appropriate permissions
 2. **Terragrunt**: Installed on your machine ([Download](https://terragrunt.gruntwork.io/docs/getting-started/install/))
 3. **AWS CLI**: Installed and configured ([Setup Guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html))
-4. **Docker**: For building container images
+4. **Docker**: For building container images with BuildKit support
 
 ## 🚀 **Quick Start Deployment**
 
@@ -162,63 +195,119 @@ NODE_ENV=production
 DATABASE_URL=postgresql://hackloumi:hackloumi@localhost:5432/hackloumi
 JWT_SECRET=change-this-to-a-very-long-random-string-for-jwt-signing
 
-# AWS Infrastructure Variables
+# REQUIRED: Owner Information
+OWNER=your.email@company.com
+
+# AWS Infrastructure Variables (Required)
 VPC_ID=vpc-xxxxxxxxx
 SUBNET_IDS=subnet-xxxxxxx,subnet-yyyyyyy
 
 # AWS Credentials
-ACCESS_KEY=your-aws-access-key-here
-SECRET_KEY=your-aws-secret-key-here
+AWS_ACCESS_KEY_ID=your-aws-access-key-here
+AWS_SECRET_ACCESS_KEY=your-aws-secret-key-here
+AWS_SESSION_TOKEN=your-session-token-if-using-temporary-credentials
+AWS_REGION=us-east-1
 AWS_ACCOUNT_ID=123456789012
+
+# Optional: SSL Configuration
+# TF_VAR_enable_ssl=true
+# TF_VAR_ssl_certificate_arn=arn:aws:acm:us-east-1:123456789012:certificate/xxxxxxxx
+
+# Optional: RDS Configuration
+# TF_VAR_create_rds=true
+# TF_VAR_database_password=your-secure-db-password
+
+# Optional: Auto-scaling Configuration
+# TF_VAR_enable_autoscaling=true
+# TF_VAR_autoscaling_min_capacity=1
+# TF_VAR_autoscaling_max_capacity=10
 ```
 
-### 2. Deploy Infrastructure (5 minutes)
+### 2. Deploy Infrastructure (5-8 minutes)
 
 ```bash
 # Full deployment pipeline
-make deploy-aws
+OWNER="your.email@company.com" make deploy-aws
 ```
 
 This single command will:
 
 1. ✅ Deploy ECR repository
-2. ✅ Build Docker image
+2. ✅ Build Docker image (ARM64 for Graviton2)
 3. ✅ Push image to ECR
-4. ✅ Deploy application infrastructure
-5. ✅ Start ECS service
+4. ✅ Deploy Application Load Balancer
+5. ✅ Deploy ECS service with load balancer integration
+6. ✅ Configure security groups and health checks
 
-### 3. Access Your Application (2 minutes)
+### 3. Access Your Application (Immediate)
 
 ```bash
-# Get the public IP of your ECS task
-aws ecs list-tasks --cluster hackloumi-chat-production
-aws ecs describe-tasks --cluster hackloumi-chat-production --tasks <task-arn>
+# Get the load balancer URL (recommended method)
+cd terraform/app
+terragrunt output load_balancer_url
 
-# Access your application
-open http://<public-ip>:3000
+# Access your application via ALB
+open $(terragrunt output -raw load_balancer_url)
+
+# Or use the load balancer DNS name directly
+echo "Application URL: $(terragrunt output -raw load_balancer_url)"
 ```
 
 ## 📋 **Environment Variables Reference**
 
-| Variable         | Description                       | Example                                    |
-| ---------------- | --------------------------------- | ------------------------------------------ |
-| `NODE_ENV`       | Node.js environment               | `production`                               |
-| `DATABASE_URL`   | PostgreSQL connection string      | `postgresql://user:pass@localhost:5432/db` |
-| `JWT_SECRET`     | Secret for JWT token signing      | `your-256-bit-secret`                      |
-| `VPC_ID`         | Existing AWS VPC ID               | `vpc-12345678`                             |
-| `SUBNET_IDS`     | Comma-separated public subnet IDs | `subnet-abc123,subnet-def456`              |
-| `ACCESS_KEY`     | AWS Access Key ID                 | `AKIAIOSFODNN7EXAMPLE`                     |
-| `SECRET_KEY`     | AWS Secret Access Key             | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
-| `AWS_ACCOUNT_ID` | AWS Account ID                    | `123456789012`                             |
+### Required Variables
+
+| Variable       | Description                       | Example                                    |
+| -------------- | --------------------------------- | ------------------------------------------ |
+| `OWNER`        | **REQUIRED** Resource owner email | `your.email@company.com`                   |
+| `NODE_ENV`     | Node.js environment               | `production`                               |
+| `DATABASE_URL` | PostgreSQL connection string      | `postgresql://user:pass@localhost:5432/db` |
+| `JWT_SECRET`   | Secret for JWT token signing      | `your-256-bit-secret`                      |
+| `VPC_ID`       | Existing AWS VPC ID               | `vpc-12345678`                             |
+| `SUBNET_IDS`   | Comma-separated public subnet IDs | `subnet-abc123,subnet-def456`              |
+
+### AWS Credentials
+
+| Variable                | Description              | Example                                    |
+| ----------------------- | ------------------------ | ------------------------------------------ |
+| `AWS_ACCESS_KEY_ID`     | AWS Access Key ID        | `AKIAIOSFODNN7EXAMPLE`                     |
+| `AWS_SECRET_ACCESS_KEY` | AWS Secret Access Key    | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
+| `AWS_SESSION_TOKEN`     | Session token (optional) | `for temporary credentials`                |
+| `AWS_REGION`            | AWS Region               | `us-east-1`                                |
+| `AWS_ACCOUNT_ID`        | AWS Account ID           | `123456789012`                             |
+
+### Optional SSL Configuration
+
+| Variable                     | Description           | Example                                                |
+| ---------------------------- | --------------------- | ------------------------------------------------------ |
+| `TF_VAR_enable_ssl`          | Enable HTTPS with SSL | `true` or `false`                                      |
+| `TF_VAR_ssl_certificate_arn` | ACM certificate ARN   | `arn:aws:acm:region:account:certificate/xxxxx" >> .env |
+
+### Optional Database Configuration
+
+| Variable                    | Description           | Example                |
+| --------------------------- | --------------------- | ---------------------- |
+| `TF_VAR_create_rds`         | Create RDS PostgreSQL | `true` or `false`      |
+| `TF_VAR_database_password`  | RDS database password | `secure-password-here` |
+| `TF_VAR_rds_instance_class` | RDS instance type     | `db.t3.micro`          |
+
+### Optional Auto-scaling Configuration
+
+| Variable                          | Description                | Example |
+| --------------------------------- | -------------------------- | ------- |
+| `TF_VAR_enable_autoscaling`       | Enable auto-scaling        | `true`  |
+| `TF_VAR_autoscaling_min_capacity` | Minimum ECS tasks          | `1`     |
+| `TF_VAR_autoscaling_max_capacity` | Maximum ECS tasks          | `10`    |
+| `TF_VAR_autoscaling_cpu_target`   | CPU utilization target (%) | `70`    |
 
 ## 🔧 **Advanced Deployment Options**
 
 ### Individual Component Deployment
 
 ```bash
-# Deploy components separately
+# Deploy components separately for testing
 make deploy-ecr-aws      # Create ECR repository first
-make build-aws           # Build Docker image
+make build-aws           # Build Docker image (ARM64)
 make push-aws            # Push to ECR
 make deploy-app-aws      # Deploy application infrastructure
 ```
@@ -226,87 +315,177 @@ make deploy-app-aws      # Deploy application infrastructure
 ### Planning Before Deployment
 
 ```bash
-# Plan individual components
+# Plan individual components without applying
 make plan-ecr-aws        # Plan ECR repository
 make plan-app-aws        # Plan application infrastructure
+
+# Verify environment variables are set correctly
+make set-vars-aws        # Shows all configured variables
 ```
 
-### Destruction Commands
+### SSL/HTTPS Configuration
 
 ```bash
-# Destroy components (auto-accept, no confirmation)
-make destroy-app-aws     # Destroy application first
-make destroy-ecr-aws     # Destroy ECR repository
+# 1. Create ACM certificate (manual step)
+aws acm request-certificate \
+  --domain-name yourdomain.com \
+  --validation-method DNS
+
+# 2. Add to .env file
+echo "TF_VAR_enable_ssl=true" >> .env
+echo "TF_VAR_ssl_certificate_arn=arn:aws:acm:region:account:certificate/xxxxx" >> .env
+
+# 3. Redeploy
+make deploy-app-aws
+```
+
+### RDS Database Configuration
+
+```bash
+# Enable RDS PostgreSQL
+echo "TF_VAR_create_rds=true" >> .env
+echo "TF_VAR_database_password=your-secure-password" >> .env
+
+# Update application to use RDS endpoint
+# (Terraform will output the RDS endpoint)
+make deploy-app-aws
+```
+
+### Auto-scaling Configuration
+
+```bash
+# Enable auto-scaling with custom targets
+echo "TF_VAR_enable_autoscaling=true" >> .env
+echo "TF_VAR_autoscaling_min_capacity=2" >> .env
+echo "TF_VAR_autoscaling_max_capacity=20" >> .env
+echo "TF_VAR_autoscaling_cpu_target=70" >> .env
+
+make deploy-app-aws
 ```
 
 ## 🔒 **Security Considerations**
 
 ### Network Security
 
-- ECS tasks in public subnets with controlled access
-- Security group allows port 3000 from internet only
-- No unnecessary network complexity
+- **Load Balancer**: ALB handles all internet traffic
+- **ECS Tasks**: Only accept traffic from ALB (no direct internet access)
+- **Security Groups**: Properly isolated with least-privilege access
+- **Optional RDS**: Private subnets with ECS-only access
 
 ### Application Security
 
-- JWT secrets configured via environment variables
-- Database credentials are containerized (development use)
-- Container runs with standard security practices
-- 🔒 `.env` file is git-ignored for security
+- **JWT Secrets**: Configured via environment variables
+- **Database**: Containerized (dev) or RDS with encryption (prod)
+- **Container Security**: ARM64 Graviton2 with security best practices
+- **Environment File**: `.env` is git-ignored for security
 
 ### Access Control
 
-- Direct public IP access (suitable for demo/development)
-- No domain/SSL complexity (can be added later if needed)
-- IAM roles follow principle of least privilege
+- **Professional URLs**: Access via ALB DNS name
+- **HTTPS Support**: Optional SSL/TLS with ACM certificates
+- **Health Checks**: ALB monitors application health
+- **IAM Roles**: Follow principle of least privilege
 
 ## 📊 **Monitoring & Observability**
 
 ### CloudWatch Integration
 
 ```bash
-# Essential metrics monitored
-- ECS task health and restarts
+# Comprehensive monitoring enabled
+- ALB access logs and metrics
+- ECS task health and performance
 - Application logs via CloudWatch
-- Container resource utilization
-- Health check endpoint status (/api/health)
+- Auto-scaling metrics and events
+- Health check status (/api/health)
 ```
 
-### Access Methods
+### Access & Monitoring Commands
 
 ```bash
-# Get application public IP
-aws ecs list-tasks --cluster hackloumi-chat-production
-aws ecs describe-tasks --cluster hackloumi-chat-production --tasks <task-arn>
+# Get application URL
+cd terraform/app
+terragrunt output load_balancer_url
+
+# Check ALB and ECS status
+aws elbv2 describe-load-balancers --names hackloumi-chat-production-alb
+aws ecs describe-services --cluster hackloumi-chat-production --services hackloumi-chat-production
 
 # View application logs
 aws logs tail /ecs/hackloumi-chat-production --follow
 
-# Check health endpoint
-curl http://<public-ip>:3000/api/health
+# Check health endpoint via ALB
+curl $(cd terraform/app && terragrunt output -raw load_balancer_url)/api/health
+```
+
+### Auto-scaling Monitoring
+
+```bash
+# Check auto-scaling status
+aws application-autoscaling describe-scalable-targets --service-namespace ecs
+
+# View scaling policies
+aws application-autoscaling describe-scaling-policies --service-namespace ecs
 ```
 
 ## 🔄 **CI/CD Integration**
 
-The Makefile commands can be easily integrated into CI/CD pipelines:
+The Makefile commands integrate seamlessly with CI/CD pipelines:
 
 ```yaml
 # Example GitHub Actions workflow
-- name: Deploy to AWS
-  run: |
-    echo "${{ secrets.ENV_FILE }}" > .env
-    make deploy-aws
+name: Deploy to AWS
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup environment
+        run: |
+          echo "OWNER=${{ secrets.OWNER }}" >> .env
+          echo "NODE_ENV=production" >> .env
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+          echo "VPC_ID=${{ secrets.VPC_ID }}" >> .env
+          echo "SUBNET_IDS=${{ secrets.SUBNET_IDS }}" >> .env
+
+      - name: Deploy to AWS
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+        run: make deploy-aws
 ```
 
 ## 🛠️ **Troubleshooting**
 
 ### Common Issues
 
-1. **VPC/Subnet not found**: Verify your VPC_ID and SUBNET_IDS in `.env`
-2. **Permission denied**: Ensure AWS credentials have sufficient permissions
-3. **Variables not set**: Run `make set-vars-aws` to verify variable loading
-4. **ECR login failed**: Check AWS region extraction from ECR URL
-5. **ECS task won't start**: Check CloudWatch logs for container errors
+1. **OWNER variable not set**:
+
+   ```bash
+   # Error: Required environment variable OWNER missing
+   export OWNER="your.email@company.com"
+   make deploy-aws
+   ```
+
+2. **VPC/Subnet not found**: Verify your VPC_ID and SUBNET_IDS in `.env`
+
+3. **ALB health checks failing**: Check application health endpoint
+
+   ```bash
+   # Test health endpoint locally first
+   curl http://localhost:3000/api/health
+   ```
+
+4. **SSL certificate issues**: Ensure certificate is validated and in correct region
+
+5. **Auto-scaling not working**: Check CloudWatch metrics and scaling policies
 
 ### Getting Help
 
@@ -314,64 +493,111 @@ The Makefile commands can be easily integrated into CI/CD pipelines:
 # Check all available Makefile commands
 make help
 
-# Verify .env file format
-cat .env
+# Verify environment variables are loaded correctly
+make set-vars-aws
 
 # Test AWS credentials
 aws sts get-caller-identity
 
-# Check Terragrunt version
-terragrunt --version
+# Check infrastructure planning
+make plan-app-aws
 ```
 
 ### Debug Commands
 
 ```bash
-# Set variables and check output
-make set-vars-aws
+# Check ALB target group health
+aws elbv2 describe-target-health --target-group-arn $(cd terraform/app && terragrunt output -raw target_group_arn)
 
-# Plan without applying
-make plan-ecr-aws
-make plan-app-aws
-
-# Check ECS service status
+# Check ECS service events
 aws ecs describe-services --cluster hackloumi-chat-production --services hackloumi-chat-production
+
+# View ECS task logs
+aws logs tail /ecs/hackloumi-chat-production --follow
 ```
 
 ## 📝 **Migration & Scaling Path**
 
-### Current Simplified Setup → Production
+### Current Production Setup Capabilities
 
-1. **Add Load Balancer**: Implement ALB when scaling beyond 1 task
-2. **Add Managed Database**: Migrate to RDS when data persistence is critical
-3. **Add SSL/TLS**: Implement certificates when using custom domain
-4. **Add Auto-scaling**: Configure based on actual usage patterns
+✅ **Already Included:**
 
-### Development → Production Considerations
+- Application Load Balancer with health checks
+- Auto-scaling policies (CPU, memory, request-based)
+- SSL/TLS support with certificate management
+- RDS PostgreSQL option
+- Comprehensive security groups
+- CloudWatch monitoring and logging
 
-- **Data Persistence**: Containerized DB suitable for development/demos
-- **High Availability**: Single task sufficient for development/testing
-- **Scaling**: Can easily add ALB + RDS when needed
-- **Cost**: Start small, scale based on actual requirements
+### Scaling Options
+
+```bash
+# Horizontal Scaling (increase tasks)
+echo "TF_VAR_ecs_desired_count=3" >> .env
+echo "TF_VAR_enable_autoscaling=true" >> .env
+make deploy-app-aws
+
+# Vertical Scaling (increase resources)
+echo "TF_VAR_ecs_cpu=1024" >> .env
+echo "TF_VAR_ecs_memory=2048" >> .env
+make deploy-app-aws
+
+# Database Scaling (switch to RDS)
+echo "TF_VAR_create_rds=true" >> .env
+echo "TF_VAR_rds_instance_class=db.t3.small" >> .env
+make deploy-app-aws
+```
+
+### High Availability Setup
+
+```bash
+# Multi-AZ with auto-scaling
+echo "TF_VAR_enable_autoscaling=true" >> .env
+echo "TF_VAR_autoscaling_min_capacity=2" >> .env
+echo "TF_VAR_autoscaling_max_capacity=10" >> .env
+echo "TF_VAR_create_rds=true" >> .env
+make deploy-app-aws
+```
 
 ## 🎯 **Architecture Benefits**
 
-### ✅ **Advantages**
+### ✅ **Production Advantages**
 
-- **💰 Cost Effective**: ~$15/month vs $50+/month
-- **🚀 Fast Deployment**: 5-minute infrastructure setup with `make deploy-aws`
-- **🔧 Simple Management**: Minimal moving parts, modular Terragrunt structure
+- **🚀 Professional Access**: Application Load Balancer with health checks
+- **📈 Auto-scaling**: CPU, memory, and request-based scaling policies
+- **🔒 Security**: Proper network isolation and security groups
+- **📊 Monitoring**: Comprehensive CloudWatch integration
+- **🔧 SSL/TLS Ready**: Easy HTTPS setup with ACM certificates
+- **💾 Database Options**: Containerized or managed RDS PostgreSQL
 - **☁️ Cloud Agnostic**: Easy migration between cloud providers
-- **📱 Demo Ready**: Perfect for development and demonstrations
-- **🤖 Automated**: Complete Makefile automation for all operations
+- **🤖 Fully Automated**: Complete Makefile automation
+- **📱 Production Ready**: Suitable for real production workloads
 
-### ⚠️ **Trade-offs**
+### ⚙️ **Configuration Flexibility**
 
-- **🔄 Single Point**: One task (can be scaled easily)
-- **💾 Data Persistence**: Container-based DB (good for development)
-- **🌐 No Load Balancer**: Direct access (can be added when needed)
-- **🔒 No SSL**: HTTP access (can be added when using custom domain)
+- **Cost Optimization**: Start with containerized DB, upgrade to RDS when needed
+- **Performance Tuning**: Configurable CPU/memory and auto-scaling targets
+- **Security Levels**: HTTP for development, HTTPS for production
+- **Scaling Strategy**: Manual task count or automatic scaling policies
+
+### 💰 **Cost Management**
+
+- **Development**: ~$36/month (ALB + ECS + containerized DB)
+- **Small Production**: ~$51/month (+ RDS)
+- **Auto-scaling**: Pay only for resources you actually use
+- **Predictable**: Fixed ALB cost, variable compute based on load
 
 ---
 
-This simplified architecture provides a **cost-effective, cloud-agnostic deployment** perfect for development, demos, and initial production workloads while maintaining the ability to scale up components as needed. The complete Makefile automation makes deployment and management effortless.
+This production-ready architecture provides **professional deployment with Application Load Balancer, auto-scaling, and security best practices** while maintaining cost-effectiveness and the ability to scale components individually based on actual requirements.
+
+## 🔄 **Destruction Commands**
+
+```bash
+# Complete cleanup (in correct order)
+make destroy-app-aws     # Destroy application infrastructure first
+make destroy-ecr-aws     # Destroy ECR repository (removes all images)
+
+# Note: This will destroy ALL resources and cannot be undone
+# Ensure you have backups of any important data
+```

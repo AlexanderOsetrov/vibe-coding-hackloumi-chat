@@ -432,17 +432,21 @@ function ChatUserPageContent() {
   };
 
   const handleTyping = () => {
-    if (currentUser && peerUsername) {
-      startTyping(peerUsername);
-      
-      // Stop typing after 1 second of inactivity
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-      typingTimeoutRef.current = setTimeout(() => {
-        stopTyping(peerUsername);
-      }, 1000);
+    if (!currentUser || !peerUsername) return;
+    
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
     }
+
+    startTyping(peerUsername);
+
+    typingTimeoutRef.current = setTimeout(() => {
+      stopTyping(peerUsername);
+    }, 1000);
+  };
+
+  const navigateToUserProfile = () => {
+    router.push(`/u/${encodeURIComponent(peerUsername)}`);
   };
 
   // Early return after all hooks are called
@@ -494,6 +498,15 @@ function ChatUserPageContent() {
           </div>
           
           <div className="flex items-center space-x-4">
+            {/* Copy Link Button */}
+            <button
+              onClick={navigateToUserProfile}
+              className="text-xs text-zinc-500 hover:text-white transition-colors px-2 py-1 border border-zinc-800 rounded"
+              title={`View @${peerUsername}'s profile`}
+            >
+              👤 View Profile
+            </button>
+            
             {/* Debug buttons in development */}
             {process.env.NODE_ENV === 'development' && (
               <div className="flex items-center space-x-2">

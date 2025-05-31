@@ -210,6 +210,10 @@ export default function ContactsSidebar({
     setSuccessMessage("");
   };
 
+  const navigateToUserProfile = (username: string) => {
+    router.push(`/u/${encodeURIComponent(username)}`);
+  };
+
   if (isLoading) {
     return (
       <div className="w-80 sidebar p-6">
@@ -329,9 +333,11 @@ export default function ContactsSidebar({
                           ? "active"
                           : ""
                       }`}
-                      onClick={() => startChat(contact.user.username)}
                     >
-                      <div className="flex-1 flex items-center space-x-3">
+                      <div 
+                        className="flex-1 flex items-center space-x-3 cursor-pointer"
+                        onClick={() => startChat(contact.user.username)}
+                      >
                         {/* Online Status Indicator */}
                         <div className={`w-2 h-2 rounded-full ${
                           onlineStatus[contact.user.username] ? "bg-green-500" : "bg-zinc-600"
@@ -340,16 +346,28 @@ export default function ContactsSidebar({
                           {contact.user.username}
                         </div>
                       </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeContact(contact.id);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-white text-xs p-1 transition-all duration-200"
-                        title="Remove contact"
-                      >
-                        ✕
-                      </button>
+                      <div className="flex items-center space-x-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigateToUserProfile(contact.user.username);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-white text-xs p-1 transition-all duration-200"
+                          title={`View profile of @${contact.user.username}`}
+                        >
+                          →
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeContact(contact.id);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-white text-xs p-1 transition-all duration-200"
+                          title="Remove contact"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

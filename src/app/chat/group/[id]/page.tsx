@@ -328,19 +328,23 @@ function ChatGroupPageContent() {
   };
 
   const handleTyping = () => {
-    if (isConnected && startGroupTyping && groupId) {
-      startGroupTyping({ groupId });
-      
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-      
-      typingTimeoutRef.current = setTimeout(() => {
-        if (stopGroupTyping && groupId) {
-          stopGroupTyping({ groupId });
-        }
-      }, 1000);
+    if (!isConnected || !startGroupTyping || !stopGroupTyping || !groupId) return;
+    
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
     }
+
+    startGroupTyping({ groupId });
+
+    typingTimeoutRef.current = setTimeout(() => {
+      if (stopGroupTyping) {
+        stopGroupTyping({ groupId });
+      }
+    }, 2000);
+  };
+
+  const navigateToGroupProfile = () => {
+    router.push(`/g/${encodeURIComponent(groupId)}`);
   };
 
   const isOwner = group && currentUser && group.owner.id === currentUser.id;
@@ -414,6 +418,15 @@ function ChatGroupPageContent() {
             </div>
             
             <div className="flex items-center space-x-2">
+              {/* Copy Link Button */}
+              <button
+                onClick={navigateToGroupProfile}
+                className="text-xs text-zinc-500 hover:text-white transition-colors px-2 py-1 border border-zinc-800 rounded"
+                title={`View "${group.name}" info`}
+              >
+                ℹ️ Group Info
+              </button>
+              
               <div className="flex items-center space-x-1 text-xs text-zinc-500">
                 <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-zinc-600'}`}></div>
                 <span className="uppercase tracking-wide">

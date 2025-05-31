@@ -201,6 +201,10 @@ export default function GroupsSection({
     setSuccessMessage("");
   };
 
+  const navigateToGroupProfile = (groupId: string) => {
+    router.push(`/g/${encodeURIComponent(groupId)}`);
+  };
+
   if (isLoading) {
     return (
       <div className="p-4">
@@ -274,7 +278,7 @@ export default function GroupsSection({
           groups.map((group) => (
             <div
               key={group.id}
-              className={`border border-zinc-800 rounded p-3 transition-colors ${
+              className={`border border-zinc-800 rounded p-3 transition-colors group ${
                 activeGroupId === group.id
                   ? "bg-zinc-800 border-zinc-700"
                   : "bg-zinc-900 hover:bg-zinc-800"
@@ -293,16 +297,28 @@ export default function GroupsSection({
                     Owner: {group.owner.username}
                   </p>
                 </div>
-                <button
-                  onClick={() => {
-                    setSelectedGroup(group);
-                    setShowGroupDetails(true);
-                    clearMessages();
-                  }}
-                  className="text-zinc-400 hover:text-white transition-colors text-xs"
-                >
-                  MANAGE
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigateToGroupProfile(group.id);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-white transition-all duration-200 text-xs px-2 py-1"
+                    title={`View group "${group.name}"`}
+                  >
+                    →
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedGroup(group);
+                      setShowGroupDetails(true);
+                      clearMessages();
+                    }}
+                    className="text-zinc-400 hover:text-white transition-colors text-xs"
+                  >
+                    MANAGE
+                  </button>
+                </div>
               </div>
             </div>
           ))

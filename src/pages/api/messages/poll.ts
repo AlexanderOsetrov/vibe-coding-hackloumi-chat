@@ -88,7 +88,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       senderId: message.senderId,
       receiverId: message.receiverId,
       senderUsername: message.sender.username,
-      receiverUsername: message.receiver.username,
+      receiverUsername: message.receiver?.username || '',
       status: "DELIVERED", // Mark as delivered since we're delivering now
     }));
 

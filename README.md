@@ -18,7 +18,7 @@ A **modern, privacy‑respecting chat platform** built with **Next.js, Tailwind 
 | **Group Chats**         | Up to **300** participants per room, with searchable history, owner‑managed member list, and graceful exit.    |
 | **Media & Rich Text**   | Send images plus bold and _italic_ text with markdown‑style shortcuts.                                         |
 | **Reactions**           | Leave emoji reactions on any message.                                                                          |
-| **Contact Visibility**  | View profile cards for contacts you know or fellow chat participants.                                          |
+| **Contact Visibility**  | View detailed profile pages for any user showing join date, contact status, and quick actions to chat or connect. |
 | **Deep Links**          | Stable URLs that resolve to any user or group chat — perfect for bookmarks and sharing.                        |
 | **Performance Tooling** | Built‑in load‑test utility to validate throughput targets (≤ 50 msg s⁻¹).                                      |
 
@@ -272,11 +272,11 @@ Each milestone is released as its own pull request and Git tag. Tick the boxes t
 - [x] `<LazyImage>` component with lazy‑loading and loading states for message images
 - [x] Image support in both direct messages and group chats with real-time delivery
 
-### M7 – Deep Links 🔗
+### M7 – Deep Links 🔗 ✅
 
-- [ ] Route `/u/[username]` focuses a DM
-- [ ] Route `/g/[id]` opens group chat (auto‑join if invited)
-- [ ] Graceful 404 page when target not found
+- [x] Route `/u/[username]` focuses a DM
+- [x] Route `/g/[id]` opens group chat (auto‑join if invited)
+- [x] Graceful 404 page when target not found
 
 ### M8 – Reactions & Profiles 😄
 

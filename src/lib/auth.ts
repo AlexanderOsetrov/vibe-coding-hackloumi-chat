@@ -1,11 +1,10 @@
 import * as argon2 from "argon2";
-import { SignJWT, jwtVerify } from "jose";
+import * as jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "fallback-secret-key-change-in-production"
-);
+const JWT_SECRET =
+  process.env.JWT_SECRET || "fallback-secret-key-change-in-production";
 
 export async function hashPassword(password: string): Promise<string> {
   return await argon2.hash(password);
@@ -26,19 +25,20 @@ export async function createJWT(payload: {
   userId: string;
   username: string;
 }): Promise<string> {
-  return await new SignJWT(payload)
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime("24h")
-    .sign(JWT_SECRET);
+  return jwt.sign(payload, JWT_SECRET, {
+    expiresIn: "24h",
+  });
 }
 
 export async function verifyJWT(
   token: string
 ): Promise<{ userId: string; username: string } | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
-    return payload as { userId: string; username: string };
+    const payload = jwt.verify(token, JWT_SECRET) as {
+      userId: string;
+      username: string;
+    };
+    return payload;
   } catch {
     return null;
   }
@@ -94,7 +94,7 @@ export async function setAuthCookie(token: string) {
   const cookieStore = await cookies();
   cookieStore.set("auth-token", token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "production" && !process.env.DOCKER_ENV,
     sameSite: "lax",
     maxAge: 60 * 60 * 24, // 24 hours
     path: "/",

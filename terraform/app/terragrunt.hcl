@@ -68,10 +68,8 @@ provider "aws" {
   
   default_tags {
     tags = {
-      Module      = "app"
-      Environment = var.environment
-      Application = var.app_name
-      ManagedBy   = "terragrunt"
+      Project = var.app_name
+      Owner   = "alexander.osetrov@dataart.com"
     }
   }
 }

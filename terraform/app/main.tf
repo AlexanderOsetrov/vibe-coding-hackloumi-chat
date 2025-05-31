@@ -18,8 +18,7 @@ provider "aws" {
   default_tags {
     tags = {
       Project     = var.app_name
-      Environment = var.environment
-      ManagedBy   = "Terraform"
+      Owner       = "alexander.osetrov@dataart.com"
     }
   }
 } 

@@ -42,8 +42,6 @@ next-env.d.ts
 
 /src/generated/prisma
 
-# uploaded images
-/public/uploads
 
 # Terraform
 .terraform/

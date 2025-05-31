@@ -10,8 +10,9 @@ resource "aws_ecr_repository" "hackloumi_chat" {
   }
 
   tags = {
-    Name        = "${var.app_name}-ecr"
+    Project     = var.app_name
     Environment = var.environment
+    Owner       = "alexander.osetrov@dataart.com"
   }
 }
 

@@ -1,5 +1,5 @@
 # Hackloumi Chat - Infrastructure Makefile
-.PHONY: help build deploy destroy logs status test clean dev db-setup db-start db-stop db-status db-connect db-reset db-restart
+.PHONY: help build deploy destroy logs status test clean dev db-setup db-start db-stop db-status db-connect db-reset set-vars-aws plan-ecr-aws plan-app-aws build-aws push-aws deploy-ecr-aws deploy-app-aws deploy-aws destroy-ecr-aws destroy-app-aws
 
 # Configuration
 CONTAINER_NAME := hackloumi-postgres
@@ -16,21 +16,63 @@ YELLOW := \033[1;33m
 RED := \033[0;31m
 NC := \033[0m
 
+# AWS environment loading pattern - reused across commands
+AWS_ENV_SETUP = set -a && . ./.env && set +a && \
+	export TF_VAR_node_env="$$NODE_ENV" && \
+	export TF_VAR_database_url="$$DATABASE_URL" && \
+	export TF_VAR_jwt_secret="$$JWT_SECRET" && \
+	export TF_VAR_vpc_id="$$VPC_ID" && \
+	export TF_VAR_public_subnet_ids="[\"$$(echo $$SUBNET_IDS | sed 's/,/","/g')\"]" && \
+	export TF_VAR_aws_region="$$AWS_REGION" && \
+	export AWS_ACCESS_KEY_ID="$$AWS_ACCESS_KEY_ID" && \
+	export AWS_SECRET_ACCESS_KEY="$$AWS_SECRET_ACCESS_KEY" && \
+	export AWS_SESSION_TOKEN="$$AWS_SESSION_TOKEN" && \
+	export AWS_REGION="$$AWS_REGION" && \
+	export AWS_ACCOUNT_ID="$$AWS_ACCOUNT_ID"
+
+# AWS .env file check
+AWS_ENV_CHECK = if [ ! -f .env ]; then \
+		echo "$(RED)[ERROR]$(NC) .env file not found!"; \
+		echo ""; \
+		echo "📋 Create a .env file with the following variables:"; \
+		echo "  NODE_ENV=production"; \
+		echo "  DATABASE_URL=postgresql://hackloumi:hackloumi@localhost:5432/hackloumi"; \
+		echo "  JWT_SECRET=your-jwt-secret-here"; \
+		echo "  VPC_ID=vpc-xxxxxxxxx"; \
+		echo "  SUBNET_IDS=subnet-xxxxxxx,subnet-yyyyyyy"; \
+		echo "  AWS_ACCESS_KEY_ID=your-aws-access-key"; \
+		echo "  AWS_SECRET_ACCESS_KEY=your-aws-secret-key"; \
+		echo "  AWS_SESSION_TOKEN=your-aws-session-token-if-using-temporary-credentials"; \
+		echo "  AWS_REGION=us-east-1"; \
+		echo "  AWS_ACCOUNT_ID=123456789012"; \
+		echo ""; \
+		exit 1; \
+	fi
+
 # Default target
 help: ## Show this help message
 	@echo "Hackloumi Chat - Available commands:"
 	@echo ""
 	@echo "📦 Development:"
-	@grep -E '^(dev|install|test|test-watch):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^(dev|install|test|test-watch):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "🐳 Docker Deployment:"
-	@grep -E '^(build|deploy|destroy|start|stop|restart|logs|status):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^(build|deploy|destroy|start|stop|restart|logs|status):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "☁️  AWS Planning & Setup:"
+	@grep -E '^(set-vars-aws|plan-ecr-aws|plan-app-aws):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "🚀 AWS Deployment:"
+	@grep -E '^(deploy-ecr-aws|build-aws|push-aws|deploy-app-aws|deploy-aws):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "💥 AWS Destruction:"
+	@grep -E '^(destroy-ecr-aws|destroy-app-aws):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "🗄️  Database Management:"
-	@grep -E '^(db-setup|db-start|db-stop|db-restart|db-status|db-connect|db-reset):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^(db-setup|db-start|db-stop|db-restart|db-status|db-connect|db-reset):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "🛠️  Utilities:"
-	@grep -E '^(clean|shell|db-studio|verify-db):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^(clean|shell|db-studio|verify-db):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 # Helper functions
 check-docker:
@@ -94,8 +136,8 @@ install: ## Install dependencies
 	npx prisma generate
 
 # Build commands
-build: ## Build the Docker image
-	@echo "$(BLUE)[INFO]$(NC) Building Docker image..."
+build: ## Build the Docker image for local development
+	@echo "$(BLUE)[INFO]$(NC) Building Docker image for local development..."
 	docker build -t hackloumi-chat:latest .
 
 # Docker Deployment commands (all-in-one containers)
@@ -282,11 +324,136 @@ db-studio: ## Open Prisma Studio for database management
 	@echo "$(BLUE)[INFO]$(NC) Opening Prisma Studio..."
 	npx prisma studio
 
-# Production-ready commands (for future AWS deployment)
-deploy-aws: ## Deploy to AWS (placeholder for future implementation)
-	@echo "$(YELLOW)[WARNING]$(NC) AWS deployment not yet implemented"
-	@echo "This will use Terraform to provision infrastructure"
+# AWS Deployment commands
+set-vars-aws: ## Set AWS Terraform variables from .env file
+	@echo "$(BLUE)[INFO]$(NC) Setting AWS Terraform variables from .env file..."
+	@$(AWS_ENV_CHECK) && \
+	$(AWS_ENV_SETUP) && \
+	echo "$(GREEN)✅ Terraform variables set successfully!$(NC)" && \
+	echo "" && \
+	echo "🔧 Set variables:" && \
+	echo "  TF_VAR_node_env=$$NODE_ENV" && \
+	echo "  TF_VAR_database_url=$$DATABASE_URL" && \
+	echo "  TF_VAR_jwt_secret=****" && \
+	echo "  TF_VAR_vpc_id=$$VPC_ID" && \
+	echo "  TF_VAR_public_subnet_ids=[\"$$(echo $$SUBNET_IDS | sed 's/,/","/g')\"]" && \
+	echo "  TF_VAR_aws_region=$$AWS_REGION" && \
+	echo "  AWS_ACCESS_KEY_ID=****" && \
+	echo "  AWS_SECRET_ACCESS_KEY=****" && \
+	echo "  AWS_SESSION_TOKEN=****" && \
+	echo "  AWS_REGION=$$AWS_REGION" && \
+	echo "  AWS_ACCOUNT_ID=****" && \
+	echo "" && \
+	echo "🚀 Now you can run Terragrunt commands:" && \
+	echo "  cd terraform/ecr && terragrunt plan" && \
+	echo "  cd terraform/app && terragrunt plan"
 
-destroy-aws: ## Destroy AWS deployment (placeholder for future implementation)
-	@echo "$(YELLOW)[WARNING]$(NC) AWS destruction not yet implemented"
-	@echo "This will use Terraform to destroy infrastructure" 
+plan-ecr-aws: ## Plan ECR repository using Terragrunt
+	@echo "$(BLUE)[INFO]$(NC) Planning ECR repository with Terragrunt..."
+	@$(AWS_ENV_CHECK) && \
+	$(AWS_ENV_SETUP) && \
+	cd terraform/ecr && terragrunt plan && \
+	echo "$(GREEN)✅ ECR repository planning completed$(NC)"
+
+plan-app-aws: ## Plan application infrastructure using Terragrunt
+	@echo "$(BLUE)[INFO]$(NC) Planning application infrastructure with Terragrunt..."
+	@$(AWS_ENV_CHECK) && \
+	$(AWS_ENV_SETUP) && \
+	cd terraform/app && terragrunt plan && \
+	echo "$(GREEN)✅ Application infrastructure planning completed$(NC)"
+
+build-aws: ## Build Docker image for AWS deployment (ARM64)
+	@echo "$(BLUE)[INFO]$(NC) Building Docker image for AWS deployment (ARM64)..."
+	@$(AWS_ENV_CHECK) && \
+	$(AWS_ENV_SETUP) && \
+	ECR_REPOSITORY=$$(cd terraform/ecr && terragrunt output -raw ecr_repository_url 2>/dev/null || echo "") && \
+	if [ -z "$$ECR_REPOSITORY" ]; then \
+		echo "$(RED)[ERROR]$(NC) ECR repository not found!"; \
+		echo "  Run 'make deploy-ecr-aws' first to create ECR repository"; \
+		exit 1; \
+	fi && \
+	echo "$(GREEN)✅ Found ECR repository: $$ECR_REPOSITORY$(NC)" && \
+	echo "$(BLUE)[INFO]$(NC) Building ARM64 Docker image for AWS..." && \
+	docker buildx build --platform linux/arm64 -t hackloumi-chat:latest . --load && \
+	docker tag hackloumi-chat:latest $$ECR_REPOSITORY:latest && \
+	echo "$(GREEN)✅ Docker image built and tagged successfully$(NC)" && \
+	echo "  Local tag: hackloumi-chat:latest" && \
+	echo "  ECR tag: $$ECR_REPOSITORY:latest"
+
+push-aws: ## Push Docker image to ECR
+	@echo "$(BLUE)[INFO]$(NC) Pushing Docker image to ECR..."
+	@$(AWS_ENV_CHECK) && \
+	$(AWS_ENV_SETUP) && \
+	ECR_REPOSITORY=$$(cd terraform/ecr && terragrunt output -raw ecr_repository_url 2>/dev/null || echo "") && \
+	if [ -z "$$ECR_REPOSITORY" ]; then \
+		echo "$(RED)[ERROR]$(NC) ECR repository not found!"; \
+		echo "  Run 'make build-aws' first"; \
+		exit 1; \
+	fi && \
+	AWS_REGION=$$(echo "$$ECR_REPOSITORY" | cut -d'.' -f4) && \
+	if [ -z "$$AWS_REGION" ]; then AWS_REGION="us-west-2"; fi && \
+	echo "$(GREEN)✅ Found ECR repository: $$ECR_REPOSITORY$(NC)" && \
+	echo "$(BLUE)[INFO]$(NC) Using region: $$AWS_REGION$(NC)" && \
+	echo "$(BLUE)[INFO]$(NC) Logging into ECR..." && \
+	aws ecr get-login-password --region $$AWS_REGION | docker login --username AWS --password-stdin $$ECR_REPOSITORY && \
+	echo "$(BLUE)[INFO]$(NC) Pushing images to ECR..." && \
+	docker push $$ECR_REPOSITORY:latest && \
+	echo "$(GREEN)✅ Images pushed successfully to ECR$(NC)"
+
+deploy-ecr-aws: ## Deploy ECR repository using Terragrunt
+	@echo "$(BLUE)[INFO]$(NC) Deploying ECR repository to AWS..."
+	@$(AWS_ENV_CHECK) && \
+	$(AWS_ENV_SETUP) && \
+	cd terraform/ecr && \
+	echo "$(BLUE)[INFO]$(NC) Applying ECR infrastructure with Terragrunt..." && \
+	terragrunt apply -auto-approve && \
+	echo "$(GREEN)✅ ECR repository deployed successfully!$(NC)"
+
+deploy-app-aws: ## Deploy application infrastructure using Terragrunt
+	@echo "$(BLUE)[INFO]$(NC) Deploying application infrastructure to AWS..."
+	@$(AWS_ENV_CHECK) && \
+	$(AWS_ENV_SETUP) && \
+	ECR_REPOSITORY=$$(cd terraform/ecr && terragrunt output -raw ecr_repository_url 2>/dev/null || echo "") && \
+	export TF_VAR_container_image="$$ECR_REPOSITORY:latest" && \
+	cd terraform/app && \
+	echo "$(BLUE)[INFO]$(NC) Applying application infrastructure with Terragrunt..." && \
+	terragrunt apply -auto-approve && \
+	echo "$(GREEN)✅ Application infrastructure deployed successfully!$(NC)" && \
+	echo "" && \
+	echo "🚀 Application deployed to AWS!" && \
+	echo "💡 To get the application URL:" && \
+	echo "  aws ecs list-tasks --cluster $$(terragrunt output -raw ecs_cluster_name)" && \
+	echo "  aws ecs describe-tasks --cluster <cluster> --tasks <task-arn>"
+
+deploy-aws: deploy-ecr-aws build-aws push-aws deploy-app-aws ## Full AWS deployment pipeline (ECR → build → push → app)
+	@echo "$(GREEN)✅ Complete AWS deployment pipeline finished!$(NC)"
+	@echo ""
+	@echo "🎉 Hackloumi Chat successfully deployed to AWS!"
+	@echo ""
+	@echo "📋 Deployment Summary:"
+	@echo "  ✅ ECR repository created"
+	@echo "  ✅ Docker image built and pushed"
+	@echo "  ✅ Application infrastructure deployed"
+	@echo ""
+	@echo "🔗 Next steps:"
+	@echo "  1. Get the application public IP using AWS CLI"
+	@echo "  2. Access your app at http://<public-ip>:3000"
+
+destroy-ecr-aws: ## Destroy ECR repository using Terragrunt
+	@echo "$(YELLOW)⚠️  Destroying the ECR repository and all images!$(NC)"
+	@echo "$(BLUE)[INFO]$(NC) Destroying ECR repository..."
+	@$(AWS_ENV_CHECK) && \
+	$(AWS_ENV_SETUP) && \
+	cd terraform/ecr && terragrunt destroy -auto-approve && \
+	echo "$(GREEN)✅ ECR repository destroyed successfully$(NC)"
+
+destroy-app-aws: ## Destroy application infrastructure using Terragrunt
+	@echo "$(YELLOW)⚠️  Destroying the application infrastructure!$(NC)"
+	@echo "$(YELLOW)   - ECS cluster and tasks$(NC)"
+	@echo "$(YELLOW)   - Security groups and IAM roles$(NC)"
+	@echo "$(YELLOW)   - CloudWatch logs$(NC)"
+	@echo "$(BLUE)[INFO]$(NC) Destroying application infrastructure..."
+	@$(AWS_ENV_CHECK) && \
+	$(AWS_ENV_SETUP) && \
+	cd terraform/app && terragrunt destroy -auto-approve && \
+	echo "$(GREEN)✅ Application infrastructure destroyed successfully$(NC)" 

@@ -30,6 +30,7 @@ done
 # Run database migrations
 echo "Running database migrations..."
 cd /app
+npx prisma generate
 npx prisma db push --accept-data-loss || true
 
 # Stop PostgreSQL so supervisord can manage it

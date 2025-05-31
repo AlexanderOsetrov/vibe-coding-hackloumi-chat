@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile for Hackloumi Chat
-# Stage 1: Build the Next.js application
+# Stage 1: Build the Next.js application 
 FROM node:18-slim AS builder
 
 WORKDIR /app
@@ -8,13 +8,13 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install ALL dependencies including dev deps (needed for build) but skip scripts
-RUN npm ci --ignore-scripts
+# Install ALL dependencies including dev deps (needed for build)
+RUN npm ci
 
 # Copy source code
 COPY . .
 
-# Generate Prisma client
+# Generate Prisma client for the current platform
 RUN npx prisma generate
 
 # Build the application

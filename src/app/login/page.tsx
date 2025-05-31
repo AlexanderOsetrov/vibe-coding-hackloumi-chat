@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -54,20 +55,14 @@ export default function LoginPage() {
       <div className="max-w-md w-full">
         <div className="card p-8">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 border border-zinc-800 mx-auto mb-6 flex items-center justify-center">
-              <svg
-                className="w-6 h-6 text-zinc-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1}
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                />
-              </svg>
+            <div className="mx-auto mb-6 flex items-center justify-center">
+              <Image
+                src="/hackloumi-logo.png"
+                alt="Hackloumi Chat"
+                width={64}
+                height={64}
+                className="object-contain"
+              />
             </div>
             <h1 className="text-xl font-light text-white tracking-wide mb-2">
               SIGN IN

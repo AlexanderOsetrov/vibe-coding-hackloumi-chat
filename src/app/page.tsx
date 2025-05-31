@@ -1,24 +1,20 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4">
       <div className="max-w-4xl mx-auto text-center">
         <div className="mb-12">
-          <div className="w-24 h-24 border border-zinc-800 mx-auto mb-8 flex items-center justify-center">
-            <svg
-              className="w-10 h-10 text-zinc-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1}
-                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.955 8.955 0 01-2.985-.504L10 16H6c-1.105 0-2-.895-2-2V6c0-1.105.895-2 2-2h12c1.105 0 2 .895 2 2v6z"
-              />
-            </svg>
+          <div className="mx-auto mb-8 flex items-center justify-center">
+            <Image
+              src="/hackloumi-logo.png"
+              alt="Hackloumi Chat Logo"
+              width={120}
+              height={120}
+              className="object-contain"
+              priority
+            />
           </div>
           <h1 className="text-4xl font-light text-white mb-6 tracking-wide">
             HACKLOUMI CHAT

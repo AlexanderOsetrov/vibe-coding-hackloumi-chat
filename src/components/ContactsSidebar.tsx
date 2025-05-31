@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import SearchBar from "./SearchBar";
 
 interface Contact {
   id: string;
@@ -181,9 +183,23 @@ export default function ContactsSidebar({
     <div className="w-80 sidebar flex flex-col h-full">
       {/* Header */}
       <div className="p-6 border-b border-zinc-900">
-        <h1 className="text-lg font-light text-white mb-6 tracking-wide">
-          CONTACTS
-        </h1>
+        <div className="flex items-center space-x-3 mb-6">
+          <Image
+            src="/hackloumi-logo.png"
+            alt="Hackloumi"
+            width={24}
+            height={24}
+            className="object-contain"
+          />
+          <h1 className="text-lg font-light text-white tracking-wide">
+            CONTACTS
+          </h1>
+        </div>
+
+        {/* Search Bar */}
+        <div className="mb-6">
+          <SearchBar currentUser={currentUser} />
+        </div>
 
         {/* Add Contact Form */}
         <form onSubmit={sendInvitation} className="space-y-3">

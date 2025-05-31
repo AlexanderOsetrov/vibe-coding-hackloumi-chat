@@ -81,9 +81,11 @@ export default function ContactsSidebar({
       if (onlineRes.ok) {
         const onlineData = await onlineRes.json();
         const statusMap: Record<string, boolean> = {};
-        onlineData.onlineStatus?.forEach((status: { username: string; isOnline: boolean }) => {
-          statusMap[status.username] = status.isOnline;
-        });
+        onlineData.onlineStatus?.forEach(
+          (status: { username: string; isOnline: boolean }) => {
+            statusMap[status.username] = status.isOnline;
+          }
+        );
         setOnlineStatus(statusMap);
       }
     } catch (error) {
@@ -96,7 +98,7 @@ export default function ContactsSidebar({
   useEffect(() => {
     if (currentUser) {
       loadData();
-      
+
       // Refresh online status every 30 seconds
       const interval = setInterval(async () => {
         try {
@@ -104,9 +106,11 @@ export default function ContactsSidebar({
           if (response.ok) {
             const data = await response.json();
             const statusMap: Record<string, boolean> = {};
-            data.onlineStatus?.forEach((status: { username: string; isOnline: boolean }) => {
-              statusMap[status.username] = status.isOnline;
-            });
+            data.onlineStatus?.forEach(
+              (status: { username: string; isOnline: boolean }) => {
+                statusMap[status.username] = status.isOnline;
+              }
+            );
             setOnlineStatus(statusMap);
           }
         } catch (error) {
@@ -339,9 +343,13 @@ export default function ContactsSidebar({
                         onClick={() => startChat(contact.user.username)}
                       >
                         {/* Online Status Indicator */}
-                        <div className={`w-2 h-2 rounded-full ${
-                          onlineStatus[contact.user.username] ? "bg-green-500" : "bg-zinc-600"
-                        }`}></div>
+                        <div
+                          className={`w-2 h-2 rounded-full ${
+                            onlineStatus[contact.user.username]
+                              ? "bg-green-500"
+                              : "bg-zinc-600"
+                          }`}
+                        ></div>
                         <div className="text-sm font-light text-white">
                           {contact.user.username}
                         </div>
@@ -421,13 +429,17 @@ export default function ContactsSidebar({
                       </div>
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => handleInvitation(invitation.id, "accept")}
+                          onClick={() =>
+                            handleInvitation(invitation.id, "accept")
+                          }
                           className="btn-primary text-xs flex-1"
                         >
                           ACCEPT
                         </button>
                         <button
-                          onClick={() => handleInvitation(invitation.id, "reject")}
+                          onClick={() =>
+                            handleInvitation(invitation.id, "reject")
+                          }
                           className="btn-ghost text-xs flex-1"
                         >
                           DECLINE
@@ -442,8 +454,8 @@ export default function ContactsSidebar({
         ) : (
           /* Groups Section */
           <div className="p-6">
-            <GroupsSection 
-              currentUser={currentUser} 
+            <GroupsSection
+              currentUser={currentUser}
               activeGroupId={activeGroupId}
             />
           </div>

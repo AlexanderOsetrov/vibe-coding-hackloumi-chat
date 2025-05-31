@@ -21,7 +21,10 @@ async function getAuthUserFromRequest(req: NextApiRequest) {
   }
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -67,7 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Mark messages as delivered
     if (messages.length > 0) {
-      const messageIds = messages.map(m => m.id);
+      const messageIds = messages.map((m) => m.id);
       await prisma.message.updateMany({
         where: {
           id: { in: messageIds },
@@ -96,9 +99,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       messages: formattedMessages,
       timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
     console.error("Polling error:", error);
     return res.status(500).json({ error: "Internal server error" });
   }
-} 
+}

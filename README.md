@@ -292,11 +292,11 @@ Each milestone is released as its own pull request and Git tag. Tick the boxes t
 
 ### M10 – Infrastructure & Deployment ☁️
 
-- [ ] Dockerfile multi‑stage: build → runtime (Node 18‑slim + PostgreSQL 16‑alpine via _supervisord_)
-- [ ] `docker‑compose.yml` exposes 3000 & 5432 volumes
+- [x] Dockerfile multi‑stage: build → runtime (Node 18‑slim + PostgreSQL 16‑alpine via _supervisord_)
+- [x] `docker‑compose.yml` exposes 3000 & 5432 volumes
 - [ ] Terraform provisions: VPC, ALB, Fargate task, EFS, S3 bucket, IAM roles
-- [ ] Makefile with `make deploy` & `make destroy` wrappers
-- [ ] Readiness & liveness probes for health checks
+- [x] Makefile with `make deploy` & `make destroy` wrappers
+- [x] Readiness & liveness probes for health checks
 
 ---
 

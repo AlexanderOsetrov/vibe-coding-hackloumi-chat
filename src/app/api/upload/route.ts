@@ -27,7 +27,10 @@ export async function POST(request: NextRequest) {
     // Validate file type
     if (!ALLOWED_TYPES.includes(file.type)) {
       return NextResponse.json(
-        { error: "Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed." },
+        {
+          error:
+            "Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.",
+        },
         { status: 400 }
       );
     }
@@ -48,7 +51,7 @@ export async function POST(request: NextRequest) {
     // Generate unique filename
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(2, 15);
-    const fileExtension = file.name.split('.').pop() || 'jpg';
+    const fileExtension = file.name.split(".").pop() || "jpg";
     const fileName = `${timestamp}-${randomString}.${fileExtension}`;
     const filePath = join(UPLOAD_DIR, fileName);
 
@@ -76,4 +79,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

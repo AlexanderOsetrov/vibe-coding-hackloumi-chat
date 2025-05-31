@@ -110,9 +110,9 @@ function ChatGroupPageContent() {
         messageGroupId: message.groupId,
         isGroupMessage: message.type === "group",
         groupIdMatch: message.groupId === groupId,
-        shouldProcess: message.type === "group" && message.groupId === groupId
+        shouldProcess: message.type === "group" && message.groupId === groupId,
       });
-      
+
       if (message.type === "group" && message.groupId === groupId) {
         console.log("✅ Processing group message for UI update");
         const newMsg: Message = {
@@ -139,7 +139,9 @@ function ChatGroupPageContent() {
         });
         scrollToBottom();
       } else {
-        console.log("❌ Ignoring message (not for this group or not group message)");
+        console.log(
+          "❌ Ignoring message (not for this group or not group message)"
+        );
       }
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -169,14 +171,20 @@ function ChatGroupPageContent() {
   // Re-establish Socket.IO connection when groupId changes
   useEffect(() => {
     if (groupId) {
-      console.log("🔄 GroupId changed, Socket.IO should reconnect for:", groupId);
+      console.log(
+        "🔄 GroupId changed, Socket.IO should reconnect for:",
+        groupId
+      );
     }
   }, [groupId]);
 
   // Join group room when connected and groupId is available
   useEffect(() => {
     if (isConnected && groupId && joinGroup) {
-      console.log("🏠 Joining group room on connection/groupId change:", groupId);
+      console.log(
+        "🏠 Joining group room on connection/groupId change:",
+        groupId
+      );
       joinGroup(groupId);
     }
   }, [isConnected, groupId, joinGroup]);
@@ -205,9 +213,7 @@ function ChatGroupPageContent() {
       }
 
       // Load messages
-      const messagesResponse = await fetch(
-        `/api/groups/${groupId}/messages`
-      );
+      const messagesResponse = await fetch(`/api/groups/${groupId}/messages`);
       if (messagesResponse.ok) {
         const messagesData = await messagesResponse.json();
         const formattedMessages: Message[] = messagesData.messages.map(
@@ -256,10 +262,10 @@ function ChatGroupPageContent() {
     const initializeChat = async () => {
       setIsLoading(true);
       setError("");
-      
+
       await loadCurrentUser();
       await loadGroupData();
-      
+
       setIsLoading(false);
     };
 
@@ -268,7 +274,8 @@ function ChatGroupPageContent() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!newMessage.trim() && !pendingImage) || !groupId || !currentUser) return;
+    if ((!newMessage.trim() && !pendingImage) || !groupId || !currentUser)
+      return;
 
     const messageText = newMessage.trim();
     const imageData = pendingImage;
@@ -328,19 +335,19 @@ function ChatGroupPageContent() {
   };
 
   const handleTyping = () => {
-    if (!isConnected || !startGroupTyping || !stopGroupTyping || !groupId) return;
-    
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
-    startGroupTyping({ groupId });
-
-    typingTimeoutRef.current = setTimeout(() => {
-      if (stopGroupTyping) {
-        stopGroupTyping({ groupId });
+    if (isConnected && startGroupTyping && groupId) {
+      startGroupTyping({ groupId });
+      
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
       }
-    }, 2000);
+      
+      typingTimeoutRef.current = setTimeout(() => {
+        if (stopGroupTyping && groupId) {
+          stopGroupTyping({ groupId });
+        }
+      }, 1000);
+    }
   };
 
   const navigateToGroupProfile = () => {
@@ -366,10 +373,7 @@ function ChatGroupPageContent() {
         <ContactsSidebar currentUser={currentUser} activeGroupId={groupId} />
         <div className="flex-1 flex flex-col items-center justify-center space-y-4">
           <div className="text-red-400 text-center">{error}</div>
-          <Link 
-            href="/chat" 
-            className="btn-primary"
-          >
+          <Link href="/chat" className="btn-primary">
             Back to Chat
           </Link>
         </div>
@@ -383,10 +387,7 @@ function ChatGroupPageContent() {
         <ContactsSidebar currentUser={currentUser} activeGroupId={groupId} />
         <div className="flex-1 flex flex-col items-center justify-center space-y-4">
           <div className="text-zinc-400 text-center">Group not found</div>
-          <Link 
-            href="/chat" 
-            className="btn-primary"
-          >
+          <Link href="/chat" className="btn-primary">
             Back to Chat
           </Link>
         </div>
@@ -397,7 +398,7 @@ function ChatGroupPageContent() {
   return (
     <div className="flex h-screen bg-black text-white">
       <ContactsSidebar currentUser={currentUser} activeGroupId={groupId} />
-      
+
       <div className="flex-1 flex flex-col">
         {/* Chat Header */}
         <div className="chat-header border-b border-zinc-900 p-4">
@@ -416,7 +417,7 @@ function ChatGroupPageContent() {
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-2">
               {/* Copy Link Button */}
               <button
@@ -428,9 +429,15 @@ function ChatGroupPageContent() {
               </button>
               
               <div className="flex items-center space-x-1 text-xs text-zinc-500">
-                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-zinc-600'}`}></div>
+                <div
+                  className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-zinc-600"}`}
+                ></div>
                 <span className="uppercase tracking-wide">
-                  {connectionType === 'websocket' ? 'REALTIME' : connectionType === 'polling' ? 'POLLING' : 'OFFLINE'}
+                  {connectionType === "websocket"
+                    ? "REALTIME"
+                    : connectionType === "polling"
+                      ? "POLLING"
+                      : "OFFLINE"}
                 </span>
               </div>
             </div>
@@ -442,16 +449,21 @@ function ChatGroupPageContent() {
           {messages.length === 0 ? (
             <div className="text-center text-zinc-500 mt-8">
               <p className="text-lg font-light">Welcome to {group.name}!</p>
-              <p className="text-sm">Start the conversation by sending a message or share an image.</p>
+              <p className="text-sm">
+                Start the conversation by sending a message or share an image.
+              </p>
               <p className="text-xs mt-2 text-zinc-600">
-                Tip: Use **bold**, _italic_, or `code` formatting in your messages
+                Tip: Use **bold**, _italic_, or `code` formatting in your
+                messages
               </p>
             </div>
           ) : (
             messages.map((message, index) => {
               const isOwnMessage = message.senderId === currentUser?.id;
-              const showSender = index === 0 || messages[index - 1].senderId !== message.senderId;
-              
+              const showSender =
+                index === 0 ||
+                messages[index - 1].senderId !== message.senderId;
+
               return (
                 <MessageBubble
                   key={message.id}
@@ -466,23 +478,22 @@ function ChatGroupPageContent() {
               );
             })
           )}
-          
+
           {/* Typing Indicators */}
           {typingUsers.length > 0 && (
             <div className="flex justify-start">
               <div className="message-bubble received opacity-75">
                 <div className="text-sm text-zinc-300">
-                  {typingUsers.length === 1 
+                  {typingUsers.length === 1
                     ? `${typingUsers[0]} is typing...`
                     : typingUsers.length === 2
-                    ? `${typingUsers[0]} and ${typingUsers[1]} are typing...`
-                    : `${typingUsers[0]} and ${typingUsers.length - 1} others are typing...`
-                  }
+                      ? `${typingUsers[0]} and ${typingUsers[1]} are typing...`
+                      : `${typingUsers[0]} and ${typingUsers.length - 1} others are typing...`}
                 </div>
               </div>
             </div>
           )}
-          
+
           <div ref={messagesEndRef} />
         </div>
 
@@ -518,7 +529,7 @@ function ChatGroupPageContent() {
               </div>
             </div>
           )}
-          
+
           <form onSubmit={handleSendMessage} className="flex space-x-3">
             <ImageUpload
               onImageUploaded={handleImageUploaded}
@@ -533,7 +544,7 @@ function ChatGroupPageContent() {
                 handleTyping();
               }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
+                if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   handleSendMessage(e);
                 }
@@ -550,10 +561,8 @@ function ChatGroupPageContent() {
               SEND
             </button>
           </form>
-          
-          {error && (
-            <div className="mt-2 text-red-400 text-sm">{error}</div>
-          )}
+
+          {error && <div className="mt-2 text-red-400 text-sm">{error}</div>}
         </div>
       </div>
     </div>
@@ -566,4 +575,4 @@ export default function ChatGroupPage() {
       <ChatGroupPageContent />
     </ErrorBoundary>
   );
-} 
+}

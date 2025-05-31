@@ -14,40 +14,42 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get("q");
 
     if (!query || query.trim().length === 0) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         results: [],
-        message: "Please provide a search query" 
+        message: "Please provide a search query",
       });
     }
 
     const searchQuery = query.trim();
-    
+
     // Sanitize the search query for PostgreSQL full-text search
     const sanitizedQuery = searchQuery
-      .replace(/[^\w\s]/g, ' ') // Remove special characters
+      .replace(/[^\w\s]/g, " ") // Remove special characters
       .split(/\s+/)
-      .filter(word => word.length > 0)
-      .join(' & '); // Join with AND operator
+      .filter((word) => word.length > 0)
+      .join(" & "); // Join with AND operator
 
     if (sanitizedQuery.length === 0) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         results: [],
-        message: "Invalid search query" 
+        message: "Invalid search query",
       });
     }
 
     // Search direct messages where the user is either sender or receiver
-    const directMessagesResults = await prisma.$queryRaw<Array<{
-      id: string;
-      content: string;
-      createdAt: Date;
-      senderId: string;
-      senderUsername: string;
-      receiverId: string;
-      receiverUsername: string;
-      rank: number;
-      type: string;
-    }>>`
+    const directMessagesResults = await prisma.$queryRaw<
+      Array<{
+        id: string;
+        content: string;
+        createdAt: Date;
+        senderId: string;
+        senderUsername: string;
+        receiverId: string;
+        receiverUsername: string;
+        rank: number;
+        type: string;
+      }>
+    >`
       SELECT 
         m.id,
         m.content,
@@ -70,17 +72,19 @@ export async function GET(request: NextRequest) {
     `;
 
     // Search group messages where the user is a member
-    const groupMessagesResults = await prisma.$queryRaw<Array<{
-      id: string;
-      content: string;
-      createdAt: Date;
-      senderId: string;
-      senderUsername: string;
-      groupId: string;
-      groupName: string;
-      rank: number;
-      type: string;
-    }>>`
+    const groupMessagesResults = await prisma.$queryRaw<
+      Array<{
+        id: string;
+        content: string;
+        createdAt: Date;
+        senderId: string;
+        senderUsername: string;
+        groupId: string;
+        groupName: string;
+        rank: number;
+        type: string;
+      }>
+    >`
       SELECT 
         m.id,
         m.content,
@@ -110,7 +114,7 @@ export async function GET(request: NextRequest) {
         content: result.content,
         createdAt: result.createdAt,
         rank: parseFloat(result.rank.toString()),
-        type: 'direct' as const,
+        type: "direct" as const,
         sender: {
           id: result.senderId,
           username: result.senderUsername,
@@ -120,16 +124,17 @@ export async function GET(request: NextRequest) {
           username: result.receiverUsername,
         },
         // Determine the conversation partner
-        conversationWith: result.senderId === authUser.userId 
-          ? result.receiverUsername 
-          : result.senderUsername,
+        conversationWith:
+          result.senderId === authUser.userId
+            ? result.receiverUsername
+            : result.senderUsername,
       })),
       ...groupMessagesResults.map((result) => ({
         id: result.id,
         content: result.content,
         createdAt: result.createdAt,
         rank: parseFloat(result.rank.toString()),
-        type: 'group' as const,
+        type: "group" as const,
         sender: {
           id: result.senderId,
           username: result.senderUsername,
@@ -139,7 +144,7 @@ export async function GET(request: NextRequest) {
           name: result.groupName,
         },
         conversationWith: result.groupName,
-      }))
+      })),
     ];
 
     // Sort by rank (highest first) and then by date (newest first)
@@ -148,7 +153,9 @@ export async function GET(request: NextRequest) {
         if (b.rank !== a.rank) {
           return b.rank - a.rank;
         }
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
       })
       .slice(0, 50); // Limit total results
 
@@ -157,7 +164,6 @@ export async function GET(request: NextRequest) {
       query: searchQuery,
       count: sortedResults.length,
     });
-
   } catch (error) {
     console.error("Search error:", error);
     return NextResponse.json(
@@ -165,4 +171,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

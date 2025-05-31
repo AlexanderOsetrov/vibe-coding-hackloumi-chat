@@ -146,13 +146,20 @@ export default function GroupsSection({
     }
   };
 
-  const removeMember = async (groupId: string, userId: string, username: string) => {
+  const removeMember = async (
+    groupId: string,
+    userId: string,
+    username: string
+  ) => {
     if (!confirm(`Remove ${username} from the group?`)) return;
 
     try {
-      const response = await fetch(`/api/groups/${groupId}/members?userId=${userId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/groups/${groupId}/members?userId=${userId}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (response.ok) {
         setSuccessMessage(`Removed ${username} from the group`);
@@ -167,7 +174,12 @@ export default function GroupsSection({
   };
 
   const deleteGroup = async (groupId: string, groupName: string) => {
-    if (!confirm(`Are you sure you want to delete the group "${groupName}"? This action cannot be undone.`)) return;
+    if (
+      !confirm(
+        `Are you sure you want to delete the group "${groupName}"? This action cannot be undone.`
+      )
+    )
+      return;
 
     try {
       const response = await fetch(`/api/groups/${groupId}`, {
@@ -285,13 +297,16 @@ export default function GroupsSection({
               }`}
             >
               <div className="flex items-center justify-between">
-                <div 
+                <div
                   className="flex-1 cursor-pointer"
                   onClick={() => openGroupChat(group.id)}
                 >
-                  <h4 className="text-white font-medium text-sm">{group.name}</h4>
+                  <h4 className="text-white font-medium text-sm">
+                    {group.name}
+                  </h4>
                   <p className="text-zinc-400 text-xs">
-                    {group._count.members} members • {group._count.messages} messages
+                    {group._count.members} members • {group._count.messages}{" "}
+                    messages
                   </p>
                   <p className="text-zinc-500 text-xs">
                     Owner: {group.owner.username}
@@ -330,7 +345,9 @@ export default function GroupsSection({
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-white">{selectedGroup.name}</h3>
+              <h3 className="text-lg font-medium text-white">
+                {selectedGroup.name}
+              </h3>
               <button
                 onClick={() => {
                   setShowGroupDetails(false);
@@ -346,7 +363,9 @@ export default function GroupsSection({
             {/* Add Member (Owner only) */}
             {isOwner(selectedGroup) && (
               <div className="mb-4">
-                <h4 className="text-sm font-medium text-white mb-2">Add Member</h4>
+                <h4 className="text-sm font-medium text-white mb-2">
+                  Add Member
+                </h4>
                 <form onSubmit={addMember} className="space-y-2">
                   <input
                     type="text"
@@ -373,21 +392,35 @@ export default function GroupsSection({
               </h4>
               <div className="space-y-2 max-h-40 overflow-y-auto">
                 {selectedGroup.members.map((member) => (
-                  <div key={member.id} className="flex items-center justify-between bg-zinc-800 rounded px-3 py-2">
+                  <div
+                    key={member.id}
+                    className="flex items-center justify-between bg-zinc-800 rounded px-3 py-2"
+                  >
                     <div>
-                      <span className="text-white text-sm">{member.user.username}</span>
+                      <span className="text-white text-sm">
+                        {member.user.username}
+                      </span>
                       {member.user.id === selectedGroup.owner.id && (
-                        <span className="text-xs text-zinc-400 ml-2">(Owner)</span>
+                        <span className="text-xs text-zinc-400 ml-2">
+                          (Owner)
+                        </span>
                       )}
                     </div>
-                    {isOwner(selectedGroup) && member.user.id !== selectedGroup.owner.id && (
-                      <button
-                        onClick={() => removeMember(selectedGroup.id, member.user.id, member.user.username)}
-                        className="text-red-400 hover:text-red-300 text-xs"
-                      >
-                        REMOVE
-                      </button>
-                    )}
+                    {isOwner(selectedGroup) &&
+                      member.user.id !== selectedGroup.owner.id && (
+                        <button
+                          onClick={() =>
+                            removeMember(
+                              selectedGroup.id,
+                              member.user.id,
+                              member.user.username
+                            )
+                          }
+                          className="text-red-400 hover:text-red-300 text-xs"
+                        >
+                          REMOVE
+                        </button>
+                      )}
                   </div>
                 ))}
               </div>
@@ -396,7 +429,9 @@ export default function GroupsSection({
             {/* Delete Group (Owner only) */}
             {isOwner(selectedGroup) && (
               <button
-                onClick={() => deleteGroup(selectedGroup.id, selectedGroup.name)}
+                onClick={() =>
+                  deleteGroup(selectedGroup.id, selectedGroup.name)
+                }
                 className="w-full bg-red-900 hover:bg-red-800 text-red-300 py-2 rounded font-medium text-sm transition-colors"
               >
                 DELETE GROUP
@@ -407,4 +442,4 @@ export default function GroupsSection({
       )}
     </div>
   );
-} 
+}

@@ -44,7 +44,15 @@ export function initializeSocket(server: HTTPServer) {
 
   io = new SocketIOServer(server, {
     cors: {
-      origin: process.env.NODE_ENV === "production" ? false : ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://127.0.0.1:3002"],
+      origin:
+        process.env.NODE_ENV === "production"
+          ? false
+          : [
+              "http://localhost:3000",
+              "http://localhost:3001",
+              "http://localhost:3002",
+              "http://127.0.0.1:3002",
+            ],
       methods: ["GET", "POST"],
       credentials: true,
     },
@@ -107,8 +115,10 @@ export function initializeSocket(server: HTTPServer) {
 
       (socket as AuthenticatedSocket).userId = user.id;
       (socket as AuthenticatedSocket).username = user.username;
-      
-      console.log(`Socket authentication successful for user: ${user.username}`);
+
+      console.log(
+        `Socket authentication successful for user: ${user.username}`
+      );
       next();
     } catch (error) {
       console.error("Socket authentication error:", error);
@@ -118,19 +128,25 @@ export function initializeSocket(server: HTTPServer) {
 
   io.on("connection", async (socket: Socket) => {
     const authSocket = socket as AuthenticatedSocket;
-    console.log(`🔗 User ${authSocket.username} connected with socket ${authSocket.id}`);
+    console.log(
+      `🔗 User ${authSocket.username} connected with socket ${authSocket.id}`
+    );
 
     if (authSocket.userId) {
       // Store user connection
       connectedUsers.set(authSocket.userId, authSocket.id);
       userSockets.set(authSocket.id, authSocket);
-      
-      console.log(`👤 User mapping: ${authSocket.username} (${authSocket.userId}) -> ${authSocket.id}`);
+
+      console.log(
+        `👤 User mapping: ${authSocket.username} (${authSocket.userId}) -> ${authSocket.id}`
+      );
       console.log(`📊 Total connected users: ${connectedUsers.size}`);
 
       // Join user to their personal room for direct messaging
       authSocket.join(`user:${authSocket.userId}`);
-      console.log(`🏠 User ${authSocket.username} joined room: user:${authSocket.userId}`);
+      console.log(
+        `🏠 User ${authSocket.username} joined room: user:${authSocket.userId}`
+      );
 
       // Join user to all their group rooms
       await joinUserGroups(authSocket);
@@ -147,66 +163,85 @@ export function initializeSocket(server: HTTPServer) {
       // Handle connection test
       authSocket.on("connection_test", (data) => {
         console.log(`🧪 Connection test from ${authSocket.username}:`, data);
-        authSocket.emit("connection_test_response", { 
-          ...data, 
+        authSocket.emit("connection_test_response", {
+          ...data,
           serverTime: Date.now(),
           userId: authSocket.userId,
-          socketId: authSocket.id 
+          socketId: authSocket.id,
         });
       });
 
       // Handle online status check
       authSocket.on("check_user_online", (data: { username: string }) => {
-        prisma.user.findUnique({
-          where: { username: data.username },
-          select: { id: true, username: true },
-        }).then((user) => {
-          if (user) {
-            const isOnline = connectedUsers.has(user.id);
-            authSocket.emit("user_online_status", {
-              userId: user.id,
-              username: user.username,
-              isOnline,
-            });
-          }
-        }).catch(console.error);
+        prisma.user
+          .findUnique({
+            where: { username: data.username },
+            select: { id: true, username: true },
+          })
+          .then((user) => {
+            if (user) {
+              const isOnline = connectedUsers.has(user.id);
+              authSocket.emit("user_online_status", {
+                userId: user.id,
+                username: user.username,
+                isOnline,
+              });
+            }
+          })
+          .catch(console.error);
       });
 
       // Handle direct message sending
-      authSocket.on("send_message", async (data: {
-        content: string;
-        receiverUsername: string;
-        imageUrl?: string;
-        imageFilename?: string;
-        imageMimeType?: string;
-        imageSize?: number;
-      }) => {
-        try {
-          console.log(`📤 Handling send_message from ${authSocket.username}:`, data);
-          await handleSendDirectMessage(authSocket, data);
-        } catch (error) {
-          console.error("Send message error:", error);
-          authSocket.emit("message_error", { error: "Failed to send message" });
+      authSocket.on(
+        "send_message",
+        async (data: {
+          content: string;
+          receiverUsername: string;
+          imageUrl?: string;
+          imageFilename?: string;
+          imageMimeType?: string;
+          imageSize?: number;
+        }) => {
+          try {
+            console.log(
+              `📤 Handling send_message from ${authSocket.username}:`,
+              data
+            );
+            await handleSendDirectMessage(authSocket, data);
+          } catch (error) {
+            console.error("Send message error:", error);
+            authSocket.emit("message_error", {
+              error: "Failed to send message",
+            });
+          }
         }
-      });
+      );
 
       // Handle group message sending
-      authSocket.on("send_group_message", async (data: {
-        content: string;
-        groupId: string;
-        imageUrl?: string;
-        imageFilename?: string;
-        imageMimeType?: string;
-        imageSize?: number;
-      }) => {
-        try {
-          console.log(`📤 Handling send_group_message from ${authSocket.username}:`, data);
-          await handleSendGroupMessage(authSocket, data);
-        } catch (error) {
-          console.error("Send group message error:", error);
-          authSocket.emit("message_error", { error: "Failed to send group message" });
+      authSocket.on(
+        "send_group_message",
+        async (data: {
+          content: string;
+          groupId: string;
+          imageUrl?: string;
+          imageFilename?: string;
+          imageMimeType?: string;
+          imageSize?: number;
+        }) => {
+          try {
+            console.log(
+              `📤 Handling send_group_message from ${authSocket.username}:`,
+              data
+            );
+            await handleSendGroupMessage(authSocket, data);
+          } catch (error) {
+            console.error("Send group message error:", error);
+            authSocket.emit("message_error", {
+              error: "Failed to send group message",
+            });
+          }
         }
-      });
+      );
 
       // Handle joining a group (when user is added to a group)
       authSocket.on("join_group", async (data: { groupId: string }) => {
@@ -227,23 +262,33 @@ export function initializeSocket(server: HTTPServer) {
       });
 
       // Handle message acknowledgment
-      authSocket.on("message_delivered", async (data: { messageId: string }) => {
-        try {
-          console.log(`Message delivered ACK from ${authSocket.username}:`, data.messageId);
-          await handleMessageDelivered(authSocket, data.messageId);
-        } catch (error) {
-          console.error("Message delivery ACK error:", error);
+      authSocket.on(
+        "message_delivered",
+        async (data: { messageId: string }) => {
+          try {
+            console.log(
+              `Message delivered ACK from ${authSocket.username}:`,
+              data.messageId
+            );
+            await handleMessageDelivered(authSocket, data.messageId);
+          } catch (error) {
+            console.error("Message delivery ACK error:", error);
+          }
         }
-      });
+      );
 
       // Handle typing indicators for direct messages
       authSocket.on("typing_start", (data: { receiverUsername: string }) => {
-        console.log(`${authSocket.username} started typing to ${data.receiverUsername}`);
+        console.log(
+          `${authSocket.username} started typing to ${data.receiverUsername}`
+        );
         handleTypingIndicator(authSocket, data.receiverUsername, true);
       });
 
       authSocket.on("typing_stop", (data: { receiverUsername: string }) => {
-        console.log(`${authSocket.username} stopped typing to ${data.receiverUsername}`);
+        console.log(
+          `${authSocket.username} stopped typing to ${data.receiverUsername}`
+        );
         handleTypingIndicator(authSocket, data.receiverUsername, false);
       });
 
@@ -258,11 +303,11 @@ export function initializeSocket(server: HTTPServer) {
 
       authSocket.on("disconnect", (reason) => {
         console.log(`User ${authSocket.username} disconnected: ${reason}`);
-        
+
         // Clean up user connections
         if (authSocket.userId) {
           connectedUsers.delete(authSocket.userId);
-          
+
           // Broadcast to all connected users that this user is now offline
           authSocket.broadcast.emit("user_offline", {
             userId: authSocket.userId,
@@ -270,10 +315,15 @@ export function initializeSocket(server: HTTPServer) {
           });
         }
         userSockets.delete(authSocket.id);
-        
+
         // Don't log client-side disconnects as errors
-        if (reason !== "client namespace disconnect" && reason !== "transport close") {
-          console.log(`Connection cleanup completed for ${authSocket.username}`);
+        if (
+          reason !== "client namespace disconnect" &&
+          reason !== "transport close"
+        ) {
+          console.log(
+            `Connection cleanup completed for ${authSocket.username}`
+          );
         }
       });
 
@@ -295,7 +345,6 @@ export function initializeSocket(server: HTTPServer) {
           console.log(`Final cleanup for user ${authSocket.username}`);
         }
       });
-
     } else {
       console.error("Socket connected without proper authentication");
       authSocket.disconnect(true);
@@ -331,15 +380,17 @@ async function joinUserGroups(socket: AuthenticatedSocket) {
       where: { userId: socket.userId },
       include: {
         group: {
-          select: { id: true, name: true }
-        }
-      }
+          select: { id: true, name: true },
+        },
+      },
     });
 
     for (const membership of userGroups) {
       const groupRoom = `group:${membership.group.id}`;
       socket.join(groupRoom);
-      console.log(`🏠 User ${socket.username} joined group room: ${groupRoom} (${membership.group.name})`);
+      console.log(
+        `🏠 User ${socket.username} joined group room: ${groupRoom} (${membership.group.name})`
+      );
     }
   } catch (error) {
     console.error("Error joining user groups:", error);
@@ -356,26 +407,28 @@ async function handleJoinGroup(socket: AuthenticatedSocket, groupId: string) {
       where: {
         userId_groupId: {
           userId: socket.userId,
-          groupId
-        }
+          groupId,
+        },
       },
       include: {
         group: {
-          select: { id: true, name: true }
-        }
-      }
+          select: { id: true, name: true },
+        },
+      },
     });
 
     if (membership) {
       const groupRoom = `group:${groupId}`;
       socket.join(groupRoom);
-      console.log(`🏠 User ${socket.username} joined group room: ${groupRoom} (${membership.group.name})`);
-      
+      console.log(
+        `🏠 User ${socket.username} joined group room: ${groupRoom} (${membership.group.name})`
+      );
+
       // Notify group members that user is online
       socket.to(groupRoom).emit("group_user_online", {
         userId: socket.userId,
         username: socket.username,
-        groupId
+        groupId,
       });
     }
   } catch (error) {
@@ -388,22 +441,22 @@ async function handleLeaveGroup(socket: AuthenticatedSocket, groupId: string) {
   if (!socket.userId) return;
 
   const groupRoom = `group:${groupId}`;
-  
+
   // Notify group members that user is leaving
   socket.to(groupRoom).emit("group_user_offline", {
     userId: socket.userId,
     username: socket.username,
-    groupId
+    groupId,
   });
-  
+
   socket.leave(groupRoom);
   console.log(`🚪 User ${socket.username} left group room: ${groupRoom}`);
 }
 
 async function handleSendDirectMessage(
   socket: AuthenticatedSocket,
-  data: { 
-    content: string; 
+  data: {
+    content: string;
     receiverUsername: string;
     imageUrl?: string;
     imageFilename?: string;
@@ -415,11 +468,20 @@ async function handleSendDirectMessage(
     throw new Error("Unauthorized");
   }
 
-  const { content, receiverUsername, imageUrl, imageFilename, imageMimeType, imageSize } = data;
+  const {
+    content,
+    receiverUsername,
+    imageUrl,
+    imageFilename,
+    imageMimeType,
+    imageSize,
+  } = data;
 
   // Validation - either content or image is required
   if ((!content || content.trim().length === 0) && !imageUrl) {
-    socket.emit("message_error", { error: "Either content or image is required" });
+    socket.emit("message_error", {
+      error: "Either content or image is required",
+    });
     return;
   }
 
@@ -441,7 +503,9 @@ async function handleSendDirectMessage(
       return;
     }
 
-    console.log(`📝 Creating direct message from ${socket.username} to ${receiver.username}`);
+    console.log(
+      `📝 Creating direct message from ${socket.username} to ${receiver.username}`
+    );
 
     // Create message in database
     const message = await prisma.message.create({
@@ -481,8 +545,10 @@ async function handleSendDirectMessage(
       id: message.id,
       from: messageData.senderUsername,
       to: messageData.receiverUsername,
-      content: messageData.content ? messageData.content.substring(0, 50) + "..." : "[Image]",
-      hasImage: !!messageData.imageUrl
+      content: messageData.content
+        ? messageData.content.substring(0, 50) + "..."
+        : "[Image]",
+      hasImage: !!messageData.imageUrl,
     });
 
     // Send confirmation to sender
@@ -491,16 +557,20 @@ async function handleSendDirectMessage(
 
     // Try to deliver to receiver immediately
     const receiverSocketId = connectedUsers.get(receiver.id);
-    console.log(`🔍 Looking for receiver ${receiver.username} (${receiver.id})`);
-    
+    console.log(
+      `🔍 Looking for receiver ${receiver.username} (${receiver.id})`
+    );
+
     if (receiverSocketId) {
       console.log(`🎯 Found receiver socket ID: ${receiverSocketId}`);
       const receiverSocket = userSockets.get(receiverSocketId);
-      
+
       if (receiverSocket) {
-        console.log(`📨 Delivering message to ${receiver.username} via socket ${receiverSocketId}`);
+        console.log(
+          `📨 Delivering message to ${receiver.username} via socket ${receiverSocketId}`
+        );
         receiverSocket.emit("new_message", messageData);
-        
+
         // Mark as delivered immediately if receiver is online
         await prisma.message.update({
           where: { id: message.id },
@@ -511,7 +581,7 @@ async function handleSendDirectMessage(
         });
 
         console.log(`✅ Message marked as delivered in database`);
-        
+
         // Notify sender of delivery
         socket.emit("message_delivered", { messageId: message.id });
         console.log(`📬 Delivery notification sent to sender`);
@@ -522,7 +592,9 @@ async function handleSendDirectMessage(
         console.log(`📥 Message queued for offline user: ${receiver.username}`);
       }
     } else {
-      console.log(`❌ Receiver ${receiver.username} not found in connectedUsers map`);
+      console.log(
+        `❌ Receiver ${receiver.username} not found in connectedUsers map`
+      );
       // Queue message for offline user
       queueMessage(receiver.id, messageData);
       console.log(`📥 Message queued for offline user: ${receiver.username}`);
@@ -535,8 +607,8 @@ async function handleSendDirectMessage(
 
 async function handleSendGroupMessage(
   socket: AuthenticatedSocket,
-  data: { 
-    content: string; 
+  data: {
+    content: string;
     groupId: string;
     imageUrl?: string;
     imageFilename?: string;
@@ -548,11 +620,20 @@ async function handleSendGroupMessage(
     throw new Error("Unauthorized");
   }
 
-  const { content, groupId, imageUrl, imageFilename, imageMimeType, imageSize } = data;
+  const {
+    content,
+    groupId,
+    imageUrl,
+    imageFilename,
+    imageMimeType,
+    imageSize,
+  } = data;
 
   // Validation - either content or image is required
   if ((!content || content.trim().length === 0) && !imageUrl) {
-    socket.emit("message_error", { error: "Either content or image is required" });
+    socket.emit("message_error", {
+      error: "Either content or image is required",
+    });
     return;
   }
 
@@ -567,22 +648,26 @@ async function handleSendGroupMessage(
       where: {
         userId_groupId: {
           userId: socket.userId,
-          groupId
-        }
+          groupId,
+        },
       },
       include: {
         group: {
-          select: { id: true, name: true }
-        }
-      }
+          select: { id: true, name: true },
+        },
+      },
     });
 
     if (!membership) {
-      socket.emit("message_error", { error: "You are not a member of this group" });
+      socket.emit("message_error", {
+        error: "You are not a member of this group",
+      });
       return;
     }
 
-    console.log(`📝 Creating group message from ${socket.username} to group ${membership.group.name}`);
+    console.log(
+      `📝 Creating group message from ${socket.username} to group ${membership.group.name}`
+    );
 
     // Create message in database
     const message = await prisma.message.create({
@@ -622,7 +707,9 @@ async function handleSendGroupMessage(
       id: message.id,
       from: messageData.senderUsername,
       group: messageData.groupName,
-      content: messageData.content ? messageData.content.substring(0, 50) + "..." : "[Image]"
+      content: messageData.content
+        ? messageData.content.substring(0, 50) + "..."
+        : "[Image]",
     });
 
     // Send confirmation to sender
@@ -631,15 +718,18 @@ async function handleSendGroupMessage(
     // Broadcast to all group members (including sender for consistency)
     const groupRoom = `group:${groupId}`;
     console.log(`📨 Broadcasting group message to room: ${groupRoom}`);
-    
+
     // Get list of sockets in the room for debugging
     const socketsInRoom = await io?.in(groupRoom).fetchSockets();
-    console.log(`👥 Sockets in room ${groupRoom}:`, socketsInRoom?.map(s => ({
-      id: s.id,
-      userId: (s as unknown as AuthenticatedSocket).userId,
-      username: (s as unknown as AuthenticatedSocket).username
-    })));
-    
+    console.log(
+      `👥 Sockets in room ${groupRoom}:`,
+      socketsInRoom?.map((s) => ({
+        id: s.id,
+        userId: (s as unknown as AuthenticatedSocket).userId,
+        username: (s as unknown as AuthenticatedSocket).username,
+      }))
+    );
+
     // Emit to all group members
     io?.to(groupRoom).emit("new_message", messageData);
     console.log(`📤 Broadcasted message data:`, {
@@ -647,7 +737,7 @@ async function handleSendGroupMessage(
       from: messageData.senderUsername,
       group: messageData.groupName,
       hasImage: !!messageData.imageUrl,
-      content: messageData.content || '[Image]'
+      content: messageData.content || "[Image]",
     });
 
     // Mark as delivered immediately for group messages (fan-out delivery)
@@ -660,17 +750,19 @@ async function handleSendGroupMessage(
     });
 
     console.log(`✅ Group message marked as delivered`);
-    
+
     // Notify sender of delivery
     socket.emit("message_delivered", { messageId: message.id });
-
   } catch (error) {
     console.error("❌ Database error in handleSendGroupMessage:", error);
     socket.emit("message_error", { error: "Failed to save group message" });
   }
 }
 
-async function handleMessageDelivered(socket: AuthenticatedSocket, messageId: string) {
+async function handleMessageDelivered(
+  socket: AuthenticatedSocket,
+  messageId: string
+) {
   if (!socket.userId) return;
 
   // Update message status in database
@@ -707,23 +799,25 @@ function handleTypingIndicator(
   if (!socket.userId || !socket.username) return;
 
   // Find receiver and send typing indicator
-  prisma.user.findUnique({
-    where: { username: receiverUsername },
-    select: { id: true },
-  }).then((receiver) => {
-    if (receiver) {
-      const receiverSocketId = connectedUsers.get(receiver.id);
-      if (receiverSocketId) {
-        const receiverSocket = userSockets.get(receiverSocketId);
-        if (receiverSocket) {
-          receiverSocket.emit("typing_indicator", {
-            username: socket.username,
-            isTyping,
-          });
+  prisma.user
+    .findUnique({
+      where: { username: receiverUsername },
+      select: { id: true },
+    })
+    .then((receiver) => {
+      if (receiver) {
+        const receiverSocketId = connectedUsers.get(receiver.id);
+        if (receiverSocketId) {
+          const receiverSocket = userSockets.get(receiverSocketId);
+          if (receiverSocket) {
+            receiverSocket.emit("typing_indicator", {
+              username: socket.username,
+              isTyping,
+            });
+          }
         }
       }
-    }
-  });
+    });
 }
 
 function handleGroupTypingIndicator(
@@ -761,11 +855,13 @@ async function deliverQueuedMessages(userId: string) {
   const socket = userSockets.get(socketId);
   if (!socket) return;
 
-  console.log(`📬 Delivering ${queuedMessages.length} queued messages to ${socket.username}`);
+  console.log(
+    `📬 Delivering ${queuedMessages.length} queued messages to ${socket.username}`
+  );
 
   for (const message of queuedMessages) {
     socket.emit("new_message", message);
-    
+
     // Mark as delivered
     await prisma.message.update({
       where: { id: message.id },
@@ -784,4 +880,4 @@ export function getIO(): SocketIOServer | null {
   return io;
 }
 
-export { connectedUsers, userSockets }; 
+export { connectedUsers, userSockets };

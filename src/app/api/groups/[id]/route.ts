@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { verifyAuth } from '@/lib/auth';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { verifyAuth } from "@/lib/auth";
 
 // Get group details
 export async function GET(
@@ -10,7 +10,7 @@ export async function GET(
   try {
     const authResult = await verifyAuth(request);
     if (!authResult.success) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const userId = authResult.userId!;
@@ -20,48 +20,51 @@ export async function GET(
     const group = await prisma.group.findFirst({
       where: {
         id: groupId,
-        OR: [
-          { ownerId: userId },
-          { members: { some: { userId } } }
-        ]
+        OR: [{ ownerId: userId }, { members: { some: { userId } } }],
       },
       include: {
         owner: {
           select: {
             id: true,
-            username: true
-          }
+            username: true,
+          },
         },
         members: {
           include: {
             user: {
               select: {
                 id: true,
-                username: true
-              }
-            }
+                username: true,
+              },
+            },
           },
           orderBy: {
-            joinedAt: 'asc'
-          }
+            joinedAt: "asc",
+          },
         },
         _count: {
           select: {
             members: true,
-            messages: true
-          }
-        }
-      }
+            messages: true,
+          },
+        },
+      },
     });
 
     if (!group) {
-      return NextResponse.json({ error: 'Group not found or access denied' }, { status: 404 });
+      return NextResponse.json(
+        { error: "Group not found or access denied" },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json({ group });
   } catch (error) {
-    console.error('Error fetching group:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error("Error fetching group:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -73,31 +76,40 @@ export async function PATCH(
   try {
     const authResult = await verifyAuth(request);
     if (!authResult.success) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const userId = authResult.userId!;
     const { id: groupId } = await params;
     const { name } = await request.json();
 
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      return NextResponse.json({ error: 'Group name is required' }, { status: 400 });
+    if (!name || typeof name !== "string" || name.trim().length === 0) {
+      return NextResponse.json(
+        { error: "Group name is required" },
+        { status: 400 }
+      );
     }
 
     if (name.trim().length > 100) {
-      return NextResponse.json({ error: 'Group name must be 100 characters or less' }, { status: 400 });
+      return NextResponse.json(
+        { error: "Group name must be 100 characters or less" },
+        { status: 400 }
+      );
     }
 
     // Check if user is the owner of the group
     const group = await prisma.group.findFirst({
       where: {
         id: groupId,
-        ownerId: userId
-      }
+        ownerId: userId,
+      },
     });
 
     if (!group) {
-      return NextResponse.json({ error: 'Group not found or you are not the owner' }, { status: 404 });
+      return NextResponse.json(
+        { error: "Group not found or you are not the owner" },
+        { status: 404 }
+      );
     }
 
     // Update the group name
@@ -108,32 +120,35 @@ export async function PATCH(
         owner: {
           select: {
             id: true,
-            username: true
-          }
+            username: true,
+          },
         },
         members: {
           include: {
             user: {
               select: {
                 id: true,
-                username: true
-              }
-            }
-          }
+                username: true,
+              },
+            },
+          },
         },
         _count: {
           select: {
             members: true,
-            messages: true
-          }
-        }
-      }
+            messages: true,
+          },
+        },
+      },
     });
 
     return NextResponse.json({ group: updatedGroup });
   } catch (error) {
-    console.error('Error updating group:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error("Error updating group:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -145,7 +160,7 @@ export async function DELETE(
   try {
     const authResult = await verifyAuth(request);
     if (!authResult.success) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const userId = authResult.userId!;
@@ -155,22 +170,28 @@ export async function DELETE(
     const group = await prisma.group.findFirst({
       where: {
         id: groupId,
-        ownerId: userId
-      }
+        ownerId: userId,
+      },
     });
 
     if (!group) {
-      return NextResponse.json({ error: 'Group not found or you are not the owner' }, { status: 404 });
+      return NextResponse.json(
+        { error: "Group not found or you are not the owner" },
+        { status: 404 }
+      );
     }
 
     // Delete the group (cascade will handle members and messages)
     await prisma.group.delete({
-      where: { id: groupId }
+      where: { id: groupId },
     });
 
-    return NextResponse.json({ message: 'Group deleted successfully' });
+    return NextResponse.json({ message: "Group deleted successfully" });
   } catch (error) {
-    console.error('Error deleting group:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error("Error deleting group:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
-} 
+}

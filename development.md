@@ -13,32 +13,74 @@ This comprehensive guide explains how to set up, develop, and manage the Hacklou
 1. **Install dependencies:**
 
    ```bash
-   npm install
+   make install
    ```
 
 2. **Set up the database:**
 
    ```bash
-   ./scripts/db.sh setup
+   make db-setup
    ```
 
 3. **Start the development server:**
 
    ```bash
-   npm run dev
+   make dev
    ```
+
+   > 💡 **Smart Database Verification**: The `make dev` command automatically verifies your database is running and ready. If the database container exists but is stopped, it will be started automatically. If no database is found, you'll get helpful setup instructions.
 
 4. **Open your browser:**
    Navigate to [http://localhost:3000](http://localhost:3000)
 
-## Database Setup
+## 🚀 Available Commands
 
-### Option 1: Using the Database Script (Recommended)
-
-The easiest way to set up the database is using our automated script:
+Use `make help` to see all available commands organized by category:
 
 ```bash
-./scripts/db.sh setup
+make help
+```
+
+### 📦 Development Commands
+
+- `make dev` - Start development environment (with automatic database verification)
+- `make install` - Install dependencies
+- `make test` - Run tests
+- `make test-watch` - Run tests in watch mode
+
+### 🗄️ Database Management
+
+- `make db-setup` - Create and start PostgreSQL container for development
+- `make db-start` - Start existing database container
+- `make db-stop` - Stop database container
+- `make db-restart` - Restart database container
+- `make db-status` - Show database status
+- `make db-connect` - Connect to database using psql
+- `make db-reset` - Reset database (DESTRUCTIVE)
+
+### 🐳 Docker Deployment
+
+- `make deploy` - Build and deploy using docker-compose
+- `make build` - Build Docker image
+- `make start/stop/restart` - Manage containers
+- `make logs` - Show application logs
+- `make status` - Check deployment health
+
+### 🛠️ Utilities
+
+- `make verify-db` - Manually verify database status
+- `make clean` - Clean up development artifacts
+- `make shell` - Get shell inside running container
+- `make db-studio` - Open Prisma Studio
+
+## Database Setup
+
+### Option 1: Using Make Commands (Recommended)
+
+The easiest way to set up the database is using the integrated Makefile:
+
+```bash
+make db-setup
 ```
 
 This will:
@@ -49,7 +91,20 @@ This will:
 - Run database migrations
 - Create the necessary environment variables
 
-### Option 2: Manual PostgreSQL Setup
+### Option 2: Legacy Database Script
+
+⚠️ **DEPRECATED**: The database script `./scripts/db.sh` is deprecated in favor of the Makefile approach:
+
+| Legacy Command            | New Command       |
+| ------------------------- | ----------------- |
+| `./scripts/db.sh setup`   | `make db-setup`   |
+| `./scripts/db.sh start`   | `make db-start`   |
+| `./scripts/db.sh stop`    | `make db-stop`    |
+| `./scripts/db.sh status`  | `make db-status`  |
+| `./scripts/db.sh connect` | `make db-connect` |
+| `./scripts/db.sh reset`   | `make db-reset`   |
+
+### Option 3: Manual PostgreSQL Setup
 
 If you prefer to use an existing PostgreSQL installation:
 
@@ -78,78 +133,76 @@ If you prefer to use an existing PostgreSQL installation:
    npx prisma db push
    ```
 
-### Option 3: Docker PostgreSQL (Manual)
-
-Run PostgreSQL in Docker manually:
-
-```bash
-docker run --name hackloumi-postgres \
-  -e POSTGRES_PASSWORD=password \
-  -e POSTGRES_DB=hackloumi_chat \
-  -p 5432:5432 \
-  -d postgres:16
-```
-
 ## Database Management
 
-We use a PostgreSQL database running in a Docker container. The `scripts/db.sh` script provides easy management of the local database.
-
-### Database Script Commands
-
-| Command                   | Description                                                         |
-| ------------------------- | ------------------------------------------------------------------- |
-| `./scripts/db.sh setup`   | **First-time setup**: Creates PostgreSQL container, runs migrations |
-| `./scripts/db.sh start`   | Start existing database container                                   |
-| `./scripts/db.sh stop`    | Stop database container                                             |
-| `./scripts/db.sh status`  | Show database status and connection info                            |
-| `./scripts/db.sh connect` | Open psql session to database                                       |
-| `./scripts/db.sh reset`   | ⚠️ **Reset database** (deletes all data)                            |
-| `./scripts/db.sh help`    | Show all available commands                                         |
+We use a PostgreSQL database running in a Docker container. The Makefile provides comprehensive database management commands with improved organization and colored output.
 
 ### Common Database Workflows
 
 **First time setup:**
 
 ```bash
-./scripts/db.sh setup
+make db-setup
 ```
 
 **Daily development:**
 
 ```bash
 # Check if database is running
-./scripts/db.sh status
+make db-status
 
 # Start database if stopped
-./scripts/db.sh start
+make db-start
 
 # Start your app
-npm run dev
+make dev
 ```
 
 **Debugging database issues:**
 
 ```bash
 # Connect to database directly
-./scripts/db.sh connect
+make db-connect
 
 # Check database status
-./scripts/db.sh status
+make db-status
 
 # Reset database if corrupted
-./scripts/db.sh reset
+make db-reset
 ```
 
 **When done for the day:**
 
 ```bash
 # Stop database to save resources
-./scripts/db.sh stop
+make db-stop
+```
+
+## Deployment Options
+
+### Local Development (Single Services)
+
+For day-to-day development, use standalone database:
+
+```bash
+make db-setup    # Setup standalone PostgreSQL
+make dev         # Start Next.js dev server
+```
+
+### Full Deployment (All-in-One)
+
+For testing production-like environment:
+
+```bash
+make deploy      # Build and deploy everything via docker-compose
+make status      # Check health
+make logs        # Monitor logs
+make destroy     # Clean up when done
 ```
 
 ## Environment Variables
 
-The application uses these environment variables (automatically configured when using the database script):
+The application uses these environment variables (automatically configured when using database commands):
 
 - `DATABASE_URL` - PostgreSQL connection string
 - `JWT_SECRET` - Secret key for JWT token signing
@@ -192,7 +245,7 @@ npx prisma db push
 **View database in Prisma Studio:**
 
 ```bash
-npx prisma studio
+make db-studio
 ```
 
 ## Development Server
@@ -200,7 +253,7 @@ npx prisma studio
 **Start development server:**
 
 ```bash
-npm run dev
+make dev
 ```
 
 **Build for production:**
@@ -255,14 +308,14 @@ src/
 ✅ **Contact management system** with invitation workflow  
 ✅ **Invite by username** functionality  
 ✅ **Accept / reject invitation** workflow  
-✅ **Contacts shown in sidebar** sorted alphabetically  
+✅ **Contacts shown in sidebar** sorted alphabetically
 
-## M3 Features Implemented  
+## M3 Features Implemented
 
 ✅ **Prisma migration adds `fts` column** (PostgreSQL _tsvector_)  
 ✅ **GET `/api/search?q=`** returns ranked matches from both direct and group messages  
 ✅ **Search bar with instant results** and navigation to both direct/group chats  
-✅ **Group message search** with proper member verification  
+✅ **Group message search** with proper member verification
 
 ## M4 Features Implemented
 
@@ -271,7 +324,7 @@ src/
 ✅ **Delivery ACK** updates message status to _delivered_  
 ✅ **Fallback to polling** when WebSocket unsupported  
 ✅ **Real-time typing indicators** for both direct and group chats  
-✅ **Online/offline status tracking** for contacts  
+✅ **Online/offline status tracking** for contacts
 
 ## M5 Features Implemented
 
@@ -280,7 +333,7 @@ src/
 ✅ **Add / remove participants** with owner approval  
 ✅ **Broadcast fan‑out** to all members over WebSocket  
 ✅ **Group chat UI** with member management  
-✅ **Real-time group messaging** with proper room handling  
+✅ **Real-time group messaging** with proper room handling
 
 ## M6 Features Implemented
 
@@ -289,7 +342,7 @@ src/
 ✅ **LazyImage component** with lazy‑loading and loading states for message images  
 ✅ **Image support** in both direct messages and group chats with real-time delivery  
 ✅ **Image upload UI** with preview and metadata display  
-✅ **Mixed content support** (text + images in same message)  
+✅ **Mixed content support** (text + images in same message)
 
 ## Additional Features Implemented
 
@@ -299,14 +352,14 @@ src/
 ✅ **Responsive design** with mobile-first approach  
 ✅ **Modern UI/UX** with sophisticated black and white design system  
 ✅ **Git repository management** with proper .gitignore for uploads  
-✅ **Development tooling** with ESLint, Prettier, and Husky  
+✅ **Development tooling** with ESLint, Prettier, and Husky
 
 ## Known Limitations
 
 - No S3 integration yet (using local file storage)
 - No deep links implementation (M7)
 - No reactions or profiles (M8)
-- No performance harness (M9)  
+- No performance harness (M9)
 - No production deployment setup (M10)
 
 These will be addressed in future milestones (M7-M10).
@@ -349,6 +402,8 @@ These will be addressed in future milestones (M7-M10).
 
 ### Database Connection Issues
 
+The `make dev` command includes automatic database verification, but if you encounter issues:
+
 1. **Check if Docker is running:**
 
    ```bash
@@ -358,31 +413,45 @@ These will be addressed in future milestones (M7-M10).
 2. **Check database status:**
 
    ```bash
-   ./scripts/db.sh status
+   make db-status
    ```
 
 3. **Restart database:**
 
    ```bash
-   ./scripts/db.sh stop
-   ./scripts/db.sh start
+   make db-restart
+   ```
+
+   Or manually:
+
+   ```bash
+   make db-stop
+   make db-start
    ```
 
 4. **Reset database if corrupted:**
+
    ```bash
-   ./scripts/db.sh reset
+   make db-reset
    ```
 
-### Next.js Issues
+5. **Manual database verification:**
+   ```bash
+   make verify-db
+   ```
 
-1. **Clear Next.js cache:**
+### Development Server Issues
+
+1. **Database not running**: The `make dev` command will automatically detect and help resolve database issues
+
+2. **Clear Next.js cache:**
 
    ```bash
    rm -rf .next
-   npm run dev
+   make dev
    ```
 
-2. **Reinstall dependencies:**
+3. **Reinstall dependencies:**
    ```bash
    rm -rf node_modules package-lock.json
    npm install
@@ -413,9 +482,9 @@ docker ps
 ## Tips for Development
 
 1. **Use the database script** - It handles Docker context switching and error checking automatically
-2. **Check database status first** - Run `./scripts/db.sh status` before starting development
+2. **Check database status first** - Run `make db-status` before starting development
 3. **Restart dev server** after environment changes
-4. **Use Prisma Studio** for database inspection: `npx prisma studio`
+4. **Use Prisma Studio** for database inspection: `make db-studio`
 5. **Keep Docker running** - The database container needs Docker to be active
 
 ## Production Deployment

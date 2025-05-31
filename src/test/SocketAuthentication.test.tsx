@@ -28,15 +28,15 @@ vi.mock("socket.io-client", () => {
     id: "mock-socket-id",
     io: {
       engine: {
-        transport: { name: "websocket" }
-      }
+        transport: { name: "websocket" },
+      },
     },
     removeAllListeners: vi.fn(),
     once: vi.fn(),
   };
 
   const mockIo = vi.fn(() => mockSocket);
-  
+
   return {
     default: mockIo,
     io: mockIo,
@@ -58,9 +58,10 @@ describe("Socket.IO Authentication Logic", () => {
   });
 
   it("should extract correct cookie name from headers", () => {
-    const cookieHeader = "auth-token=eyJhbGciOiJIUzI1NiJ9.test; other-cookie=value";
+    const cookieHeader =
+      "auth-token=eyJhbGciOiJIUzI1NiJ9.test; other-cookie=value";
     const cookies = parse(cookieHeader);
-    
+
     expect(cookies["auth-token"]).toBe("eyJhbGciOiJIUzI1NiJ9.test");
     expect(cookies["auth_token"]).toBeUndefined(); // Old incorrect name
   });
@@ -68,20 +69,20 @@ describe("Socket.IO Authentication Logic", () => {
   it("should handle missing auth cookie", () => {
     const cookieHeader = "other-cookie=value; session=abc123";
     const cookies = parse(cookieHeader);
-    
+
     expect(cookies["auth-token"]).toBeUndefined();
   });
 
   it("should handle empty cookie header", () => {
     const cookieHeader = "";
     const cookies = parse(cookieHeader);
-    
+
     expect(cookies["auth-token"]).toBeUndefined();
   });
 
   it("should simulate authentication flow", async () => {
     const { prisma } = await import("@/lib/db");
-    
+
     // Mock valid JWT verification
     const mockVerifyJWT = vi.mocked(verifyJWT);
     mockVerifyJWT.mockResolvedValue({
@@ -150,7 +151,7 @@ describe("Socket.IO Authentication Logic", () => {
 
   it("should handle user not found in database", async () => {
     const { prisma } = await import("@/lib/db");
-    
+
     // Mock valid JWT verification
     const mockVerifyJWT = vi.mocked(verifyJWT);
     mockVerifyJWT.mockResolvedValue({
@@ -170,4 +171,4 @@ describe("Socket.IO Authentication Logic", () => {
 
     expect(user).toBeNull();
   });
-}); 
+});

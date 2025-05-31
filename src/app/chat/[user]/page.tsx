@@ -69,7 +69,14 @@ function ChatUserPageContent() {
   const peerUsername = params?.user as string;
 
   // Socket.IO hook with real-time messaging
-  const { sendMessage: sendSocketMessage, startTyping, stopTyping, connectionType, isConnected, checkUserOnline } = useSocket({
+  const {
+    sendMessage: sendSocketMessage,
+    startTyping,
+    stopTyping,
+    connectionType,
+    isConnected,
+    checkUserOnline,
+  } = useSocket({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onNewMessage: (message: any) => {
       console.log("🎯 onNewMessage callback triggered:", message);
@@ -77,14 +84,19 @@ function ChatUserPageContent() {
       console.log("Peer username:", peerUsername);
       console.log("Message sender:", message.senderUsername);
       console.log("Message receiver:", message.receiverUsername);
-      
+
       // Only add messages for this conversation
-      const isMessageForThisConversation = 
-        (message.senderUsername === peerUsername && message.receiverUsername === currentUser?.username) ||
-        (message.senderUsername === currentUser?.username && message.receiverUsername === peerUsername);
-      
-      console.log("Is message for this conversation?", isMessageForThisConversation);
-      
+      const isMessageForThisConversation =
+        (message.senderUsername === peerUsername &&
+          message.receiverUsername === currentUser?.username) ||
+        (message.senderUsername === currentUser?.username &&
+          message.receiverUsername === peerUsername);
+
+      console.log(
+        "Is message for this conversation?",
+        isMessageForThisConversation
+      );
+
       if (isMessageForThisConversation) {
         console.log("✅ Adding new message to UI:", message);
         setMessages((prev) => {
@@ -118,7 +130,7 @@ function ChatUserPageContent() {
           messageFrom: message.senderUsername,
           messageTo: message.receiverUsername,
           currentUser: currentUser?.username,
-          peerUser: peerUsername
+          peerUser: peerUsername,
         });
       }
     },
@@ -126,29 +138,38 @@ function ChatUserPageContent() {
     onMessageSent: (message: any) => {
       // Add sent message to the conversation - ensure it's for this conversation
       if (
-        (message.senderUsername === currentUser?.username && message.receiverUsername === peerUsername) ||
-        (message.senderUsername === peerUsername && message.receiverUsername === currentUser?.username) ||
-        (message.senderUsername === "current-user" && message.receiverUsername === peerUsername) // Handle optimistic messages
+        (message.senderUsername === currentUser?.username &&
+          message.receiverUsername === peerUsername) ||
+        (message.senderUsername === peerUsername &&
+          message.receiverUsername === currentUser?.username) ||
+        (message.senderUsername === "current-user" &&
+          message.receiverUsername === peerUsername) // Handle optimistic messages
       ) {
         console.log("Adding sent message to UI:", message);
         setMessages((prev) => {
           // If this is a real message replacing an optimistic one
           if (!message.id.startsWith("temp-")) {
             // Remove any temporary messages for this content and receiver
-            const filteredMessages = prev.filter(m => 
-              !(m.id.startsWith("temp-") && 
-                m.content === message.content && 
-                m.receiverUsername === message.receiverUsername)
+            const filteredMessages = prev.filter(
+              (m) =>
+                !(
+                  m.id.startsWith("temp-") &&
+                  m.content === message.content &&
+                  m.receiverUsername === message.receiverUsername
+                )
             );
-            
+
             // Check if the real message already exists
             const existingIds = new Set(filteredMessages.map((m) => m.id));
             if (existingIds.has(message.id)) {
               console.log("Real message already exists, skipping:", message.id);
               return prev;
             }
-            
-            console.log("Replacing optimistic message with real message:", message.id);
+
+            console.log(
+              "Replacing optimistic message with real message:",
+              message.id
+            );
             const newMsg: DirectMessage = {
               id: message.id,
               content: message.content,
@@ -168,10 +189,13 @@ function ChatUserPageContent() {
             // This is an optimistic message
             const existingIds = new Set(prev.map((m) => m.id));
             if (existingIds.has(message.id)) {
-              console.log("Optimistic message already exists, skipping:", message.id);
+              console.log(
+                "Optimistic message already exists, skipping:",
+                message.id
+              );
               return prev;
             }
-            
+
             // Update the optimistic message with current user info if available
             const updatedMessage: DirectMessage = {
               id: message.id,
@@ -187,13 +211,16 @@ function ChatUserPageContent() {
               imageMimeType: message.imageMimeType,
               imageSize: message.imageSize,
             };
-            
+
             console.log("Adding new optimistic message:", message.id);
             return [...prev, updatedMessage];
           }
         });
       } else {
-        console.log("Sent message not for this conversation, ignoring:", message);
+        console.log(
+          "Sent message not for this conversation, ignoring:",
+          message
+        );
       }
     },
     onMessageDelivered: () => {
@@ -203,7 +230,7 @@ function ChatUserPageContent() {
     onTypingIndicator: (data) => {
       if (data.username === peerUsername) {
         setTypingUser(data.isTyping ? data.username : null);
-        
+
         // Clear typing indicator after 3 seconds
         if (data.isTyping) {
           if (typingTimeoutRef.current) {
@@ -233,7 +260,10 @@ function ChatUserPageContent() {
   });
 
   const scrollToBottom = () => {
-    if (messagesEndRef.current && typeof messagesEndRef.current.scrollIntoView === 'function') {
+    if (
+      messagesEndRef.current &&
+      typeof messagesEndRef.current.scrollIntoView === "function"
+    ) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   };
@@ -244,7 +274,7 @@ function ChatUserPageContent() {
 
   const loadMessages = useCallback(async () => {
     if (!peerUsername) return;
-    
+
     try {
       console.log("🔄 Loading messages for peer:", peerUsername);
       const response = await fetch(
@@ -281,20 +311,23 @@ function ChatUserPageContent() {
   // Periodic message checking as fallback
   const checkForNewMessages = useCallback(async () => {
     if (!peerUsername || !currentUser) return;
-    
+
     try {
       const since = lastMessageCheck.toISOString();
       console.log("🔍 Checking for new messages since:", since);
-      
+
       const response = await fetch(
         `/api/messages?peer=${encodeURIComponent(peerUsername)}&since=${encodeURIComponent(since)}`
       );
-      
+
       if (response.ok) {
         const data = await response.json();
         if (data.messages && data.messages.length > 0) {
-          console.log("📨 Found new messages via polling:", data.messages.length);
-          
+          console.log(
+            "📨 Found new messages via polling:",
+            data.messages.length
+          );
+
           const formattedMessages = data.messages.map((msg: ApiMessage) => ({
             id: msg.id,
             content: msg.content,
@@ -309,18 +342,23 @@ function ChatUserPageContent() {
             imageMimeType: msg.imageMimeType,
             imageSize: msg.imageSize,
           }));
-          
+
           setMessages((prev) => {
-            const existingIds = new Set(prev.map(m => m.id));
-            const newMessages = formattedMessages.filter((msg: DirectMessage) => !existingIds.has(msg.id));
-            
+            const existingIds = new Set(prev.map((m) => m.id));
+            const newMessages = formattedMessages.filter(
+              (msg: DirectMessage) => !existingIds.has(msg.id)
+            );
+
             if (newMessages.length > 0) {
-              console.log("📥 Adding new messages from polling:", newMessages.length);
+              console.log(
+                "📥 Adding new messages from polling:",
+                newMessages.length
+              );
               return [...prev, ...newMessages];
             }
             return prev;
           });
-          
+
           setLastMessageCheck(new Date());
         }
       }
@@ -334,7 +372,7 @@ function ChatUserPageContent() {
     if (currentUser && peerUsername) {
       // Check every 5 seconds as fallback
       messagePollingRef.current = setInterval(checkForNewMessages, 5000);
-      
+
       return () => {
         if (messagePollingRef.current) {
           clearInterval(messagePollingRef.current);
@@ -349,11 +387,13 @@ function ChatUserPageContent() {
     if (peerUsername && isConnected) {
       // Check online status via socket
       checkUserOnline(peerUsername);
-      
+
       // Also check via HTTP API as backup
       const checkPeerStatus = async () => {
         try {
-          const response = await fetch(`/api/users/${encodeURIComponent(peerUsername)}/online`);
+          const response = await fetch(
+            `/api/users/${encodeURIComponent(peerUsername)}/online`
+          );
           if (response.ok) {
             const data = await response.json();
             setIsPeerOnline(data.isOnline);
@@ -362,14 +402,14 @@ function ChatUserPageContent() {
           console.error("Failed to check peer online status:", error);
         }
       };
-      
+
       checkPeerStatus();
     }
   }, [peerUsername, isConnected, checkUserOnline]);
 
   useEffect(() => {
     if (!peerUsername) return;
-    
+
     // Check authentication and load initial messages
     const initializeChat = async () => {
       try {
@@ -401,21 +441,23 @@ function ChatUserPageContent() {
 
     const messageContent = newMessage.trim();
     const imageData = pendingImage;
-    
+
     setNewMessage("");
     setPendingImage(null);
     setError("");
 
     // Send via enhanced sendMessage function that supports images
     sendSocketMessage(
-      messageContent || "", 
+      messageContent || "",
       peerUsername,
-      imageData ? {
-        imageUrl: imageData.url,
-        imageFilename: imageData.filename,
-        imageMimeType: imageData.mimeType,
-        imageSize: imageData.size,
-      } : undefined
+      imageData
+        ? {
+            imageUrl: imageData.url,
+            imageFilename: imageData.filename,
+            imageMimeType: imageData.mimeType,
+            imageSize: imageData.size,
+          }
+        : undefined
     );
   };
 
@@ -479,8 +521,8 @@ function ChatUserPageContent() {
         {/* Chat Header */}
         <div className="p-4 border-b border-zinc-900 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <Link 
-              href="/chat" 
+            <Link
+              href="/chat"
               className="text-zinc-400 hover:text-white transition-colors"
             >
               ←
@@ -490,13 +532,15 @@ function ChatUserPageContent() {
             </h1>
             {/* Peer Online Status */}
             <div className="flex items-center space-x-2">
-              <div className={`w-2 h-2 rounded-full ${isPeerOnline ? "bg-green-500" : "bg-zinc-500"}`}></div>
+              <div
+                className={`w-2 h-2 rounded-full ${isPeerOnline ? "bg-green-500" : "bg-zinc-500"}`}
+              ></div>
               <span className="text-xs text-zinc-500">
                 {isPeerOnline ? "Online" : "Offline"}
               </span>
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-4">
             {/* Copy Link Button */}
             <button
@@ -508,7 +552,7 @@ function ChatUserPageContent() {
             </button>
             
             {/* Debug buttons in development */}
-            {process.env.NODE_ENV === 'development' && (
+            {process.env.NODE_ENV === "development" && (
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => {
@@ -530,18 +574,24 @@ function ChatUserPageContent() {
                 </button>
               </div>
             )}
-            
+
             {/* Socket Connection Status Indicator */}
             <div className="flex items-center space-x-2 text-xs">
-              <div className={`w-2 h-2 rounded-full ${
-                connectionType === "websocket" ? "bg-green-500" : 
-                connectionType === "polling" ? "bg-yellow-500" : 
-                "bg-red-500"
-              }`}></div>
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  connectionType === "websocket"
+                    ? "bg-green-500"
+                    : connectionType === "polling"
+                      ? "bg-yellow-500"
+                      : "bg-red-500"
+                }`}
+              ></div>
               <span className="text-zinc-500">
-                {connectionType === "websocket" ? "Real-time" : 
-                 connectionType === "polling" ? "Polling" : 
-                 "Connecting..."}
+                {connectionType === "websocket"
+                  ? "Real-time"
+                  : connectionType === "polling"
+                    ? "Polling"
+                    : "Connecting..."}
               </span>
             </div>
           </div>
@@ -588,10 +638,14 @@ function ChatUserPageContent() {
                     content={message.content}
                     imageUrl={message.imageUrl}
                     imageFilename={message.imageFilename}
-                    isOwnMessage={message.senderUsername === currentUser?.username}
+                    isOwnMessage={
+                      message.senderUsername === currentUser?.username
+                    }
                     timestamp={message.createdAt}
                     senderUsername={message.senderUsername}
-                    showSender={message.senderUsername !== currentUser?.username}
+                    showSender={
+                      message.senderUsername !== currentUser?.username
+                    }
                   />
                 ))
               )}
@@ -606,7 +660,7 @@ function ChatUserPageContent() {
                   {typingUser} is typing...
                 </div>
               )}
-              
+
               {/* Pending Image Preview */}
               {pendingImage && (
                 <div className="mb-4 p-4 bg-zinc-900 border border-zinc-700 rounded-lg">
@@ -622,9 +676,12 @@ function ChatUserPageContent() {
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-zinc-300 font-medium">{pendingImage.filename}</p>
+                      <p className="text-sm text-zinc-300 font-medium">
+                        {pendingImage.filename}
+                      </p>
                       <p className="text-xs text-zinc-500">
-                        {(pendingImage.size / 1024 / 1024).toFixed(1)} MB • {pendingImage.mimeType}
+                        {(pendingImage.size / 1024 / 1024).toFixed(1)} MB •{" "}
+                        {pendingImage.mimeType}
                       </p>
                     </div>
                     <button
@@ -640,8 +697,11 @@ function ChatUserPageContent() {
                   </p>
                 </div>
               )}
-              
-              <form onSubmit={handleSendMessage} className="flex items-end space-x-4">
+
+              <form
+                onSubmit={handleSendMessage}
+                className="flex items-end space-x-4"
+              >
                 <div className="flex-1">
                   <textarea
                     value={newMessage}
@@ -660,7 +720,7 @@ function ChatUserPageContent() {
                     }}
                   />
                 </div>
-                
+
                 {/* Image Upload Button */}
                 <div className="flex-shrink-0">
                   <ImageUpload
@@ -669,7 +729,7 @@ function ChatUserPageContent() {
                     disabled={false}
                   />
                 </div>
-                
+
                 <button
                   type="submit"
                   disabled={!newMessage.trim() && !pendingImage}

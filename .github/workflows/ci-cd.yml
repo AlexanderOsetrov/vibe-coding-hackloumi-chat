@@ -15,7 +15,6 @@ env:
   AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
   AWS_REGION: ${{ vars.AWS_REGION }}
   AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-  HUSKY: 0  # Disable husky in CI/CD environment
 
 jobs:
   deploy-ecr:
@@ -48,7 +47,7 @@ jobs:
           cache: 'npm'
       
       - name: Install dependencies
-        run: npm ci
+        run: HUSKY=0 npm ci
       
       - name: Setup Infrastructure Tools
         uses: ./.github/actions/setup-infrastructure-tools

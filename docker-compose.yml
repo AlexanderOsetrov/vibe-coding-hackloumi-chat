@@ -17,6 +17,10 @@ services:
       - .env
     environment:
       - DOCKER_ENV=true
+      # Database configuration with defaults (can be overridden in .env)
+      - POSTGRES_DB=${POSTGRES_DB:-hackloumi}
+      - POSTGRES_USER=${POSTGRES_USER:-hackloumi}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-hackloumi}
     healthcheck:
       test: ["CMD", "/healthcheck.sh"]
       interval: 30s

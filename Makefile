@@ -1,13 +1,36 @@
 # Hackloumi Chat - Infrastructure Makefile
 .PHONY: help build deploy destroy logs status test clean dev db-setup db-start db-stop db-status db-connect db-reset set-vars-aws plan-ecr-aws plan-app-aws build-aws push-aws deploy-ecr-aws deploy-app-aws deploy-aws destroy-ecr-aws destroy-app-aws
 
-# Configuration
+# Database Configuration (configurable via environment variables)
+CONTAINER_NAME := ${POSTGRES_CONTAINER_NAME}
+ifeq ($(CONTAINER_NAME),)
 CONTAINER_NAME := hackloumi-postgres
+endif
+
+DB_NAME := ${POSTGRES_DB}
+ifeq ($(DB_NAME),)
 DB_NAME := hackloumi_chat
+endif
+
+DB_USER := ${POSTGRES_USER}
+ifeq ($(DB_USER),)
 DB_USER := postgres
+endif
+
+DB_PASSWORD := ${POSTGRES_PASSWORD}
+ifeq ($(DB_PASSWORD),)
 DB_PASSWORD := password
+endif
+
+DB_PORT := ${POSTGRES_PORT}
+ifeq ($(DB_PORT),)
 DB_PORT := 5432
+endif
+
+POSTGRES_VERSION := ${POSTGRES_VERSION}
+ifeq ($(POSTGRES_VERSION),)
 POSTGRES_VERSION := 16
+endif
 
 # Colors for output
 BLUE := \033[0;34m
@@ -106,7 +129,7 @@ help: ## Show this help message
 	@grep -E '^(destroy-ecr-aws|destroy-app-aws):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "🗄️  Database Management:"
-	@grep -E '^(db-setup|db-start|db-stop|db-restart|db-status|db-connect|db-reset):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^(db-setup|db-start|db-stop|db-restart|db-status|db-connect|db-reset|db-config):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "🛠️  Utilities:"
 	@grep -E '^(clean|shell|db-studio|verify-db):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -496,4 +519,26 @@ destroy-app-aws: ## Destroy application infrastructure using Terragrunt
 	@$(AWS_ENV_CHECK) && \
 	$(AWS_ENV_SETUP) && \
 	cd terraform/app && terragrunt destroy -auto-approve && \
-	echo "$(GREEN)✅ Application infrastructure destroyed successfully$(NC)" 
+	echo "$(GREEN)✅ Application infrastructure destroyed successfully$(NC)"
+
+db-config: ## Show current database configuration
+	@echo "$(BLUE)[INFO]$(NC) Current database configuration:"
+	@echo ""
+	@echo "📋 Database Settings:"
+	@echo "  Container Name: $(CONTAINER_NAME)"
+	@echo "  Database Name:  $(DB_NAME)"
+	@echo "  Username:       $(DB_USER)"
+	@echo "  Password:       $(DB_PASSWORD)"
+	@echo "  Port:           $(DB_PORT)"
+	@echo "  Version:        $(POSTGRES_VERSION)"
+	@echo ""
+	@echo "🔧 Environment Variables (current values):"
+	@echo "  POSTGRES_CONTAINER_NAME: $${POSTGRES_CONTAINER_NAME:-[not set, using default]}"
+	@echo "  POSTGRES_DB:             $${POSTGRES_DB:-[not set, using default]}"
+	@echo "  POSTGRES_USER:           $${POSTGRES_USER:-[not set, using default]}"
+	@echo "  POSTGRES_PASSWORD:       $${POSTGRES_PASSWORD:-[not set, using default]}"
+	@echo "  POSTGRES_PORT:           $${POSTGRES_PORT:-[not set, using default]}"
+	@echo "  POSTGRES_VERSION:        $${POSTGRES_VERSION:-[not set, using default]}"
+	@echo ""
+	@echo "💡 To customize, set these variables in your .env file or environment"
+	@echo "💡 Run 'node scripts/construct-database-url.js' to see constructed DATABASE_URL" 

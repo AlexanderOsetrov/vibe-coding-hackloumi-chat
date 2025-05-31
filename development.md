@@ -87,6 +87,7 @@ make help
 - `make db-status` - Show database status
 - `make db-connect` - Connect to database using psql
 - `make db-reset` - Reset database (DESTRUCTIVE)
+- `make db-config` - Show current database configuration and environment variables
 
 ### 🛠️ Utilities
 
@@ -113,6 +114,30 @@ make dev         # Start Next.js dev server with hot reload
 - Minimal resource usage
 - Direct file system access
 
+**Database Configuration:**
+
+You can now configure the database using individual environment variables instead of a hardcoded DATABASE_URL:
+
+```bash
+# .env configuration for local development
+NODE_ENV=development
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+
+# Database configuration (will auto-construct DATABASE_URL)
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=hackloumi_chat
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=password
+POSTGRES_CONTAINER_NAME=hackloumi-postgres
+```
+
+Or use the traditional DATABASE_URL approach:
+
+```bash
+DATABASE_URL="postgresql://postgres:password@localhost:5432/hackloumi_chat"
+```
+
 ### Docker Development (Production-like Testing)
 
 For testing production-like environment locally:
@@ -130,6 +155,36 @@ make destroy     # Clean up when done
 - Container isolation
 - Full stack testing
 - Load balancer simulation
+
+**✅ Configurable Database Setup:**
+
+The docker deployment now supports configurable database credentials! You can customize them in your `.env` file:
+
+```bash
+# .env configuration for docker deployment
+NODE_ENV=development
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+
+# Docker database configuration (customize as needed)
+POSTGRES_DB=hackloumi
+POSTGRES_USER=hackloumi
+POSTGRES_PASSWORD=hackloumi
+
+# Or use any other values you prefer:
+# POSTGRES_DB=my_custom_db
+# POSTGRES_USER=my_user
+# POSTGRES_PASSWORD=my_secure_password
+```
+
+**No More Hardcoded Values!**
+
+The docker container will now use whatever database credentials you specify in your `.env` file, with sensible defaults if not provided.
+
+**Default values (if not specified):**
+
+- Database: `hackloumi`
+- User: `hackloumi`
+- Password: `hackloumi`
 
 ### AWS Development (Cloud Testing)
 
@@ -151,52 +206,115 @@ terragrunt output load_balancer_url
 - Auto-scaling validation
 - Production readiness verification
 
-## Database Setup
+**Database Configuration for AWS:**
 
-### Option 1: Using Make Commands (Recommended)
-
-The easiest way to set up the database is using the integrated Makefile:
+AWS deployment uses the same configurable approach:
 
 ```bash
-make db-setup
+# .env configuration for AWS deployment
+NODE_ENV=production
+JWT_SECRET=change-this-to-a-very-long-random-string-for-jwt-signing
+
+# Database configuration (containerized in ECS)
+POSTGRES_DB=hackloumi
+POSTGRES_USER=hackloumi
+POSTGRES_PASSWORD=hackloumi
+
+# REQUIRED: Owner Information
+OWNER=your.email@company.com
+
+# AWS Infrastructure Variables (Required)
+VPC_ID=vpc-xxxxxxxxx
+SUBNET_IDS=subnet-xxxxxxx,subnet-yyyyyyy
+# ... additional AWS variables
 ```
 
-This will:
+## Database Configuration
 
-- Create a PostgreSQL Docker container
-- Set up the database with proper configuration
-- Generate Prisma client
-- Run database migrations
-- Verify database connectivity
+### 🎯 **NEW: Fully Configurable Database Setup**
 
-### Option 2: Manual PostgreSQL Setup
+All database credentials are now configurable via environment variables! No more hardcoded values.
 
-If you prefer to use an existing PostgreSQL installation:
+### Configuration Methods
 
-1. **Install PostgreSQL** on your system
-2. **Create a database:**
+**Method 1: Individual Environment Variables (Recommended)**
 
-   ```sql
-   CREATE DATABASE hackloumi_chat;
-   ```
+Set individual database components in your `.env` file:
 
-3. **Create environment variables** by creating a `.env` file in the project root:
+```bash
+# Database configuration
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=my_app_db
+POSTGRES_USER=my_user
+POSTGRES_PASSWORD=my_secure_password
+POSTGRES_CONTAINER_NAME=my-postgres-container
+```
 
-   ```env
-   DATABASE_URL="postgresql://postgres:password@localhost:5432/hackloumi_chat?schema=public"
-   JWT_SECRET="your-super-secret-jwt-key-change-this-in-production"
-   ```
+The application will automatically construct the `DATABASE_URL` from these components.
 
-4. **Generate Prisma client:**
+**Method 2: Direct DATABASE_URL**
 
-   ```bash
-   npx prisma generate
-   ```
+Set the complete database URL directly:
 
-5. **Run database migrations:**
-   ```bash
-   npx prisma db push
-   ```
+```bash
+DATABASE_URL="postgresql://my_user:my_secure_password@localhost:5432/my_app_db"
+```
+
+**Method 3: Environment Variables at Runtime**
+
+Override settings for specific commands:
+
+```bash
+POSTGRES_DB=test_db POSTGRES_USER=test_user make db-setup
+```
+
+### Check Your Configuration
+
+Use the new configuration commands to verify your setup:
+
+```bash
+# Show current database configuration
+make db-config
+
+# Check what DATABASE_URL would be constructed
+node scripts/construct-database-url.js
+
+# Verify database connectivity
+make verify-db
+```
+
+### Configuration Examples
+
+**Example 1: Different databases for different purposes**
+
+```bash
+# Development
+POSTGRES_DB=hackloumi_dev
+POSTGRES_USER=dev_user
+POSTGRES_PASSWORD=dev_password
+
+# Testing
+POSTGRES_DB=hackloumi_test
+POSTGRES_USER=test_user
+POSTGRES_PASSWORD=test_password
+
+# Production (Docker/AWS)
+POSTGRES_DB=hackloumi_prod
+POSTGRES_USER=prod_user
+POSTGRES_PASSWORD=secure_prod_password
+```
+
+**Example 2: Custom database server**
+
+```bash
+# Connect to external PostgreSQL server
+POSTGRES_HOST=my-db-server.com
+POSTGRES_PORT=5433
+POSTGRES_DB=my_database
+POSTGRES_USER=my_username
+POSTGRES_PASSWORD=my_password
+```
 
 ## Database Management
 
@@ -595,6 +713,62 @@ The `make dev` command includes automatic database verification, but if you enco
    make install
    ```
 
+### Docker Deployment Issues
+
+1. **"Internal Server Error" after changing DATABASE_URL**:
+
+   This is the most common issue with docker deployment. The docker container expects a specific database configuration.
+
+   **Quick fix:**
+
+   ```bash
+   # Set correct DATABASE_URL for docker deployment
+   echo 'DATABASE_URL="postgresql://hackloumi:hackloumi@localhost:5432/hackloumi"' > .env
+   echo 'JWT_SECRET="your-super-secret-jwt-key-change-this-in-production"' >> .env
+
+   # Rebuild and redeploy
+   make destroy
+   make deploy
+   ```
+
+2. **Database connection refused in docker**:
+
+   ```bash
+   # Check if the container is healthy
+   make status
+
+   # Check container logs
+   make logs
+
+   # If database initialization failed, rebuild
+   make destroy
+   docker system prune -f
+   make deploy
+   ```
+
+3. **App works locally but not in docker**:
+
+   This usually means environment variable mismatch. Compare your local vs docker database configs:
+
+   ```bash
+   # Check what DATABASE_URL your local app uses
+   cat .env
+
+   # For local development, should be:
+   # DATABASE_URL="postgresql://postgres:password@localhost:5432/hackloumi_chat"
+
+   # For docker deployment, should be:
+   # DATABASE_URL="postgresql://hackloumi:hackloumi@localhost:5432/hackloumi"
+   ```
+
+4. **Database data persistence issues**:
+   ```bash
+   # If you need to reset docker database completely
+   make destroy
+   docker volume prune -f  # This will delete ALL docker volumes
+   make deploy
+   ```
+
 ### AWS Deployment Issues
 
 1. **OWNER variable not set**:
@@ -695,3 +869,97 @@ The Makefile commands are designed for CI/CD integration:
 ```
 
 For complete CI/CD setup, see [AWS-DEPLOYMENT-GUIDE.md](./AWS-DEPLOYMENT-GUIDE.md).
+
+## Quick Reference: Database Configurations
+
+### 🎯 **NEW: Unified Configurable Approach**
+
+All deployment methods now use the same configurable database setup via environment variables!
+
+### Local Development
+
+```bash
+# .env configuration (customize as needed)
+NODE_ENV=development
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+
+# Database configuration - customize these values
+POSTGRES_DB=hackloumi_chat
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=password
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+
+# Commands
+make db-config   # Check current configuration
+make db-setup    # Create standalone PostgreSQL container
+make dev         # Start development server
+```
+
+### Docker Deployment
+
+```bash
+# .env configuration (customize as needed)
+NODE_ENV=development
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+
+# Database configuration - use any values you want
+POSTGRES_DB=hackloumi
+POSTGRES_USER=hackloumi
+POSTGRES_PASSWORD=hackloumi
+
+# Commands
+make db-config   # Check current configuration
+make deploy      # Build and deploy full stack
+make logs        # View logs
+make destroy     # Clean up
+```
+
+### AWS Deployment
+
+```bash
+# .env configuration (customize as needed)
+NODE_ENV=production
+JWT_SECRET=change-this-to-a-very-long-random-string-for-jwt-signing
+
+# Database configuration - containerized in ECS
+POSTGRES_DB=hackloumi
+POSTGRES_USER=hackloumi
+POSTGRES_PASSWORD=hackloumi
+
+# Required AWS variables
+OWNER=your.email@company.com
+VPC_ID=vpc-xxxxxxxxx
+SUBNET_IDS=subnet-xxxxxxx,subnet-yyyyyyy
+# ... other AWS variables
+
+# Commands
+make db-config   # Check current configuration
+OWNER="your.email@company.com" make deploy-aws
+cd terraform/app && terragrunt output load_balancer_url
+```
+
+### 🛠️ **Configuration Commands**
+
+| Command                                  | Purpose                                                       |
+| ---------------------------------------- | ------------------------------------------------------------- |
+| `make db-config`                         | Show current database configuration and environment variables |
+| `node scripts/construct-database-url.js` | See what DATABASE_URL would be constructed                    |
+| `make verify-db`                         | Verify database connectivity for local development            |
+
+### ✅ **Benefits of New Approach**
+
+- **🎯 Consistent**: Same configuration method for all deployments
+- **🔧 Flexible**: Customize any database setting via environment variables
+- **📋 Transparent**: See exactly what configuration is being used
+- **🚫 No More Hardcoding**: All credentials are configurable
+- **🔍 Debuggable**: Easy to check and verify your configuration
+
+### Common Issues
+
+| Issue                                  | Cause                                | Solution                                              |
+| -------------------------------------- | ------------------------------------ | ----------------------------------------------------- |
+| Container fails to start               | Wrong database credentials           | Check `make db-config` and verify your `.env` file    |
+| Can't connect to database              | Database not running or wrong config | Run `make verify-db` to diagnose the issue            |
+| Different behavior between deployments | Different .env configurations        | Use `make db-config` to compare settings              |
+| DATABASE_URL not working               | Missing or incorrect components      | Run `node scripts/construct-database-url.js` to debug |

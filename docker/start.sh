@@ -3,6 +3,14 @@ set -e
 
 echo "Starting Hackloumi Chat application..."
 
+# Database configuration from environment variables with defaults
+DB_NAME="${POSTGRES_DB:-hackloumi}"
+DB_USER="${POSTGRES_USER:-hackloumi}"
+
+echo "Using database configuration:"
+echo "  Database: $DB_NAME"
+echo "  User: $DB_USER"
+
 # Initialize database if needed
 /docker-entrypoint-initdb.d/init-db.sh
 
@@ -19,7 +27,7 @@ su - postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /var/lib/postgresql/data 
 # Wait for PostgreSQL to be ready
 echo "Waiting for PostgreSQL to be ready..."
 for i in {1..30}; do
-    if su - postgres -c "pg_isready -d hackloumi"; then
+    if su - postgres -c "pg_isready -d $DB_NAME"; then
         echo "PostgreSQL is ready!"
         break
     fi

@@ -9,19 +9,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { content, receiverUsername, groupId } = await request.json();
+    const { 
+      content, 
+      receiverUsername, 
+      groupId,
+      imageUrl,
+      imageFilename,
+      imageMimeType,
+      imageSize
+    } = await request.json();
 
-    // Validation
-    if (!content) {
+    // Validation - either content or image is required
+    if (!content && !imageUrl) {
       return NextResponse.json(
-        { error: "Content is required" },
+        { error: "Either content or image is required" },
         { status: 400 }
       );
     }
 
-    if (content.trim().length === 0) {
+    if (content && content.trim().length === 0 && !imageUrl) {
       return NextResponse.json(
-        { error: "Message content cannot be empty" },
+        { error: "Message cannot be empty" },
         { status: 400 }
       );
     }
@@ -63,10 +71,14 @@ export async function POST(request: NextRequest) {
       // Create group message
       message = await prisma.message.create({
         data: {
-          content: content.trim(),
+          content: content ? content.trim() : "",
           senderId: authUser.userId,
           groupId,
           status: "SENT",
+          imageUrl,
+          imageFilename,
+          imageMimeType,
+          imageSize,
         },
         include: {
           sender: {
@@ -91,6 +103,10 @@ export async function POST(request: NextRequest) {
             groupName: message.group?.name,
             status: message.status,
             type: "group",
+            imageUrl: message.imageUrl,
+            imageFilename: message.imageFilename,
+            imageMimeType: message.imageMimeType,
+            imageSize: message.imageSize,
           },
         },
         { status: 201 }
@@ -111,10 +127,14 @@ export async function POST(request: NextRequest) {
       // Create direct message
       message = await prisma.message.create({
         data: {
-          content: content.trim(),
+          content: content ? content.trim() : "",
           senderId: authUser.userId,
           receiverId: receiver.id,
           status: "SENT",
+          imageUrl,
+          imageFilename,
+          imageMimeType,
+          imageSize,
         },
         include: {
           sender: {
@@ -139,6 +159,10 @@ export async function POST(request: NextRequest) {
             receiverUsername: message.receiver?.username,
             status: message.status,
             type: "direct",
+            imageUrl: message.imageUrl,
+            imageFilename: message.imageFilename,
+            imageMimeType: message.imageMimeType,
+            imageSize: message.imageSize,
           },
         },
         { status: 201 }

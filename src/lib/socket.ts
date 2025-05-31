@@ -22,6 +22,10 @@ interface MessageData {
   createdAt: string;
   status: string;
   type: "direct" | "group";
+  imageUrl?: string | null;
+  imageFilename?: string | null;
+  imageMimeType?: string | null;
+  imageSize?: number | null;
 }
 
 // In-memory store for connected users
@@ -186,6 +190,10 @@ export function initializeSocket(server: HTTPServer) {
       authSocket.on("send_group_message", async (data: {
         content: string;
         groupId: string;
+        imageUrl?: string;
+        imageFilename?: string;
+        imageMimeType?: string;
+        imageSize?: number;
       }) => {
         try {
           console.log(`📤 Handling send_group_message from ${authSocket.username}:`, data);
@@ -502,17 +510,29 @@ async function handleSendDirectMessage(
 
 async function handleSendGroupMessage(
   socket: AuthenticatedSocket,
-  data: { content: string; groupId: string }
+  data: { 
+    content: string; 
+    groupId: string;
+    imageUrl?: string;
+    imageFilename?: string;
+    imageMimeType?: string;
+    imageSize?: number;
+  }
 ) {
   if (!socket.userId || !socket.username) {
     throw new Error("Unauthorized");
   }
 
-  const { content, groupId } = data;
+  const { content, groupId, imageUrl, imageFilename, imageMimeType, imageSize } = data;
 
-  // Validation
-  if (!content || !groupId || content.trim().length === 0) {
-    socket.emit("message_error", { error: "Invalid group message data" });
+  // Validation - either content or image is required
+  if ((!content || content.trim().length === 0) && !imageUrl) {
+    socket.emit("message_error", { error: "Either content or image is required" });
+    return;
+  }
+
+  if (!groupId) {
+    socket.emit("message_error", { error: "Group ID is required" });
     return;
   }
 
@@ -542,10 +562,14 @@ async function handleSendGroupMessage(
     // Create message in database
     const message = await prisma.message.create({
       data: {
-        content: content.trim(),
+        content: content ? content.trim() : "",
         senderId: socket.userId,
         groupId,
         status: "SENT",
+        imageUrl,
+        imageFilename,
+        imageMimeType,
+        imageSize,
       },
       include: {
         sender: { select: { id: true, username: true } },
@@ -563,13 +587,17 @@ async function handleSendGroupMessage(
       createdAt: message.createdAt.toISOString(),
       status: message.status,
       type: "group",
+      imageUrl: message.imageUrl,
+      imageFilename: message.imageFilename,
+      imageMimeType: message.imageMimeType,
+      imageSize: message.imageSize,
     };
 
     console.log(`💾 Group message saved to database:`, {
       id: message.id,
       from: messageData.senderUsername,
       group: messageData.groupName,
-      content: messageData.content.substring(0, 50) + "..."
+      content: messageData.content ? messageData.content.substring(0, 50) + "..." : "[Image]"
     });
 
     // Send confirmation to sender
@@ -579,8 +607,23 @@ async function handleSendGroupMessage(
     const groupRoom = `group:${groupId}`;
     console.log(`📨 Broadcasting group message to room: ${groupRoom}`);
     
+    // Get list of sockets in the room for debugging
+    const socketsInRoom = await io?.in(groupRoom).fetchSockets();
+    console.log(`👥 Sockets in room ${groupRoom}:`, socketsInRoom?.map(s => ({
+      id: s.id,
+      userId: (s as unknown as AuthenticatedSocket).userId,
+      username: (s as unknown as AuthenticatedSocket).username
+    })));
+    
     // Emit to all group members
     io?.to(groupRoom).emit("new_message", messageData);
+    console.log(`📤 Broadcasted message data:`, {
+      id: messageData.id,
+      from: messageData.senderUsername,
+      group: messageData.groupName,
+      hasImage: !!messageData.imageUrl,
+      content: messageData.content || '[Image]'
+    });
 
     // Mark as delivered immediately for group messages (fan-out delivery)
     await prisma.message.update({

@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -15,140 +9,105 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  password  String   // Argon2 hashed password
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Messages sent by this user
-  sentMessages     Message[] @relation("MessageSender")
-  // Messages received by this user
-  receivedMessages Message[] @relation("MessageReceiver")
-
-  // Contacts where this user is the owner
-  contactsOwned    Contact[] @relation("ContactOwner")
-  // Contacts where this user is the contact
-  contactsReceived Contact[] @relation("ContactUser")
-
-  // Contact invitations sent by this user
-  sentInvitations     ContactInvitation[] @relation("InvitationSender")
-  // Contact invitations received by this user
+  id                  String              @id @default(cuid())
+  username            String              @unique
+  password            String
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
   receivedInvitations ContactInvitation[] @relation("InvitationReceiver")
-
-  // Groups owned by this user
-  ownedGroups Group[] @relation("GroupOwner")
-  
-  // Group memberships for this user
-  groupMemberships GroupMember[]
+  sentInvitations     ContactInvitation[] @relation("InvitationSender")
+  contactsReceived    Contact[]           @relation("ContactUser")
+  contactsOwned       Contact[]           @relation("ContactOwner")
+  groupMemberships    GroupMember[]
+  ownedGroups         Group[]             @relation("GroupOwner")
+  receivedMessages    Message[]           @relation("MessageReceiver")
+  sentMessages        Message[]           @relation("MessageSender")
 
   @@map("users")
 }
 
 model Message {
-  id        String   @id @default(cuid())
-  content   String
-  fts       Unsupported("tsvector")?  // Full-text search vector
-  status    MessageStatus @default(SENT)  // Delivery status
-  createdAt DateTime @default(now())
-  deliveredAt DateTime?  // When message was delivered to recipient
+  id            String                   @id @default(cuid())
+  content       String
+  fts           Unsupported("tsvector")?
+  createdAt     DateTime                 @default(now())
+  senderId      String
+  receiverId    String?
+  deliveredAt   DateTime?
+  status        MessageStatus            @default(SENT)
+  groupId       String?
+  imageFilename String?
+  imageMimeType String?
+  imageSize     Int?
+  imageUrl      String?
+  group         Group?                   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  receiver      User?                    @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender        User                     @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
 
-  // Sender of the message
-  senderId String
-  sender   User   @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-
-  // Receiver of the message (for direct messages)
-  receiverId String?
-  receiver   User?   @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
-
-  // Group message (for group chats)
-  groupId String?
-  group   Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
-
-  @@map("messages")
   @@index([senderId, receiverId, createdAt])
   @@index([receiverId, senderId, createdAt])
   @@index([groupId, createdAt])
-  @@index([fts], map: "messages_fts_idx", type: Gin)
+  @@index([fts], type: Gin)
   @@index([status])
+  @@map("messages")
 }
 
 model Contact {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
-
-  // The user who owns this contact relationship
-  ownerId String
-  owner   User   @relation("ContactOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-
-  // The user who is the contact
+  ownerId   String
   contactId String
-  contact   User   @relation("ContactUser", fields: [contactId], references: [id], onDelete: Cascade)
+  contact   User     @relation("ContactUser", fields: [contactId], references: [id], onDelete: Cascade)
+  owner     User     @relation("ContactOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@unique([ownerId, contactId])
-  @@map("contacts")
   @@index([ownerId])
   @@index([contactId])
+  @@map("contacts")
 }
 
 model ContactInvitation {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // The user who sent the invitation
-  senderId String
-  sender   User   @relation("InvitationSender", fields: [senderId], references: [id], onDelete: Cascade)
-
-  // The user who received the invitation
+  id         String                  @id @default(cuid())
+  createdAt  DateTime                @default(now())
+  updatedAt  DateTime                @updatedAt
+  senderId   String
   receiverId String
-  receiver   User   @relation("InvitationReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
-
-  // Status of the invitation
-  status ContactInvitationStatus @default(PENDING)
+  status     ContactInvitationStatus @default(PENDING)
+  receiver   User                    @relation("InvitationReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User                    @relation("InvitationSender", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@unique([senderId, receiverId])
-  @@map("contact_invitations")
   @@index([receiverId, status])
   @@index([senderId, status])
+  @@map("contact_invitations")
 }
 
 model Group {
-  id        String   @id @default(cuid())
+  id        String        @id @default(cuid())
   name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  ownerId   String
+  members   GroupMember[]
+  owner     User          @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  messages  Message[]
 
-  // The user who owns this group
-  ownerId String
-  owner   User   @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-
-  // Members of this group
-  members GroupMember[]
-  
-  // Messages in this group
-  messages Message[]
-
-  @@map("groups")
   @@index([ownerId])
+  @@map("groups")
 }
 
 model GroupMember {
-  id        String   @id @default(cuid())
-  joinedAt  DateTime @default(now())
-
-  // The user who is a member
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // The group they are a member of
-  groupId String
-  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  id       String   @id @default(cuid())
+  joinedAt DateTime @default(now())
+  userId   String
+  groupId  String
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, groupId])
-  @@map("group_members")
   @@index([groupId])
   @@index([userId])
+  @@map("group_members")
 }
 
 enum ContactInvitationStatus {
@@ -158,6 +117,6 @@ enum ContactInvitationStatus {
 }
 
 enum MessageStatus {
-  SENT      // Message sent to server
-  DELIVERED // Message delivered to recipient
+  SENT
+  DELIVERED
 }

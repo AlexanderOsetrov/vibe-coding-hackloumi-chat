@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import ContactsSidebar from "@/components/ContactsSidebar";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import MessageBubble from "@/components/MessageBubble";
+import ImageUpload from "@/components/ImageUpload";
 import { useSocket } from "@/hooks/useSocket";
 
 interface ApiMessage {
@@ -14,6 +17,10 @@ interface ApiMessage {
   sender: { id: string; username: string };
   group?: { id: string; name: string };
   status?: string;
+  imageUrl?: string | null;
+  imageFilename?: string | null;
+  imageMimeType?: string | null;
+  imageSize?: number | null;
 }
 
 interface Message {
@@ -26,6 +33,10 @@ interface Message {
   groupName?: string;
   status?: string;
   type: "group";
+  imageUrl?: string | null;
+  imageFilename?: string | null;
+  imageMimeType?: string | null;
+  imageSize?: number | null;
 }
 
 interface User {
@@ -53,193 +64,175 @@ interface Group {
   };
 }
 
+interface PendingImage {
+  url: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+}
+
 function ChatGroupPageContent() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const router = useRouter();
+  const [groupId, setGroupId] = useState<string>("");
   const [group, setGroup] = useState<Group | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
+  const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
-  const router = useRouter();
-  const params = useParams();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const groupId = params?.id as string;
+  useEffect(() => {
+    const pathSegments = window.location.pathname.split("/");
+    const id = pathSegments[pathSegments.length - 1];
+    console.log("🆔 Setting groupId:", id);
+    setGroupId(id);
+  }, []);
 
-  // Socket.IO hook with real-time messaging
-  const { 
-    sendGroupMessage, 
-    startGroupTyping, 
-    stopGroupTyping, 
-    connectionType, 
-    isConnected 
+  // Socket.IO hook with real-time messaging - MOVED AFTER groupId is set
+  const {
+    isConnected,
+    connectionType,
+    sendGroupMessage,
+    startGroupTyping,
+    stopGroupTyping,
+    joinGroup,
   } = useSocket({
-    onNewMessage: (message) => {
-      console.log("🎯 onNewMessage callback triggered:", message);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onNewMessage: (message: any) => {
+      console.log("🔔 RECEIVED NEW MESSAGE VIA SOCKET:", message);
+      console.log("🆔 Current groupId:", groupId);
+      console.log("📊 Message details:", {
+        messageType: message.type,
+        messageGroupId: message.groupId,
+        isGroupMessage: message.type === "group",
+        groupIdMatch: message.groupId === groupId,
+        shouldProcess: message.type === "group" && message.groupId === groupId
+      });
       
-      // Only add messages for this group
       if (message.type === "group" && message.groupId === groupId) {
-        console.log("✅ Adding new group message to UI:", message);
+        console.log("✅ Processing group message for UI update");
+        const newMsg: Message = {
+          id: message.id,
+          content: message.content,
+          createdAt: message.createdAt,
+          senderId: message.senderId,
+          groupId: message.groupId,
+          senderUsername: message.senderUsername,
+          groupName: message.groupName,
+          status: message.status,
+          type: "group" as const,
+          imageUrl: message.imageUrl,
+          imageFilename: message.imageFilename,
+          imageMimeType: message.imageMimeType,
+          imageSize: message.imageSize,
+        };
+        console.log("🎯 Adding message to UI:", newMsg);
         setMessages((prev) => {
-          // Avoid duplicates
-          const existingIds = new Set(prev.map((m) => m.id));
-          if (existingIds.has(message.id)) {
-            console.log("⚠️ New message already exists, skipping:", message.id);
-            return prev;
-          }
-          console.log("📥 Adding new received group message to state:", message.id);
-          const groupMessage: Message = {
-            id: message.id,
-            content: message.content,
-            createdAt: message.createdAt,
-            senderId: message.senderId,
-            groupId: message.groupId,
-            senderUsername: message.senderUsername,
-            groupName: message.groupName,
-            status: message.status,
-            type: "group"
-          };
-          const newMessages = [...prev, groupMessage];
-          console.log("📊 Total messages after adding:", newMessages.length);
-          return newMessages;
+          console.log("📝 Previous messages count:", prev.length);
+          const updated = [...prev, newMsg];
+          console.log("📝 Updated messages count:", updated.length);
+          return updated;
         });
+        scrollToBottom();
+      } else {
+        console.log("❌ Ignoring message (not for this group or not group message)");
       }
     },
-    onMessageSent: (message) => {
-      if (message.type === "group" && message.groupId === groupId) {
-        console.log("Adding sent group message to UI:", message);
-        setMessages((prev) => {
-          if (!message.id.startsWith("temp-")) {
-            const filteredMessages = prev.filter(m => 
-              !(m.id.startsWith("temp-") && 
-                m.content === message.content && 
-                m.groupId === message.groupId)
-            );
-            
-            const existingIds = new Set(filteredMessages.map((m) => m.id));
-            if (existingIds.has(message.id)) {
-              console.log("Real message already exists, skipping:", message.id);
-              return prev;
-            }
-            
-            const groupMessage: Message = {
-              id: message.id,
-              content: message.content,
-              createdAt: message.createdAt,
-              senderId: message.senderId,
-              groupId: message.groupId,
-              senderUsername: message.senderUsername,
-              groupName: message.groupName,
-              status: message.status,
-              type: "group"
-            };
-            return [...filteredMessages, groupMessage];
-          } else {
-            const existingIds = new Set(prev.map((m) => m.id));
-            if (existingIds.has(message.id)) {
-              return prev;
-            }
-            
-            const updatedMessage: Message = {
-              id: message.id,
-              content: message.content,
-              createdAt: message.createdAt,
-              senderId: currentUser?.id || message.senderId,
-              groupId: message.groupId,
-              senderUsername: currentUser?.username || message.senderUsername,
-              groupName: message.groupName,
-              status: message.status,
-              type: "group"
-            };
-            
-            return [...prev, updatedMessage];
-          }
-        });
-      }
-    },
-    onGroupTypingIndicator: (data) => {
-      if (data.groupId === groupId && data.username !== currentUser?.username) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onGroupTypingIndicator: (data: any) => {
+      if (data.groupId === groupId && data.username) {
         setTypingUsers((prev) => {
           if (data.isTyping) {
             if (!prev.includes(data.username)) {
               return [...prev, data.username];
             }
           } else {
-            return prev.filter(username => username !== data.username);
+            return prev.filter((user) => user !== data.username);
           }
           return prev;
         });
-        
-        // Clear typing indicator after 3 seconds
-        if (data.isTyping) {
-          setTimeout(() => {
-            setTypingUsers((prev) => prev.filter(username => username !== data.username));
-          }, 3000);
-        }
       }
     },
-    onError: (errorMessage) => {
-      setError(errorMessage);
+    onMessageDelivered: (messageId: string) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, status: "DELIVERED" } : msg
+        )
+      );
     },
   });
 
-  const scrollToBottom = () => {
-    if (messagesEndRef.current && typeof messagesEndRef.current.scrollIntoView === 'function') {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+  // Re-establish Socket.IO connection when groupId changes
+  useEffect(() => {
+    if (groupId) {
+      console.log("🔄 GroupId changed, Socket.IO should reconnect for:", groupId);
     }
+  }, [groupId]);
+
+  // Join group room when connected and groupId is available
+  useEffect(() => {
+    if (isConnected && groupId && joinGroup) {
+      console.log("🏠 Joining group room on connection/groupId change:", groupId);
+      joinGroup(groupId);
+    }
+  }, [isConnected, groupId, joinGroup]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, typingUsers]);
 
   const loadGroupData = useCallback(async () => {
     if (!groupId) return;
-    
+
     try {
-      console.log("🔄 Loading group data for:", groupId);
-      
       // Load group details
       const groupResponse = await fetch(`/api/groups/${groupId}`);
       if (groupResponse.ok) {
         const groupData = await groupResponse.json();
         setGroup(groupData.group);
-        console.log("📋 Loaded group data:", groupData.group);
-      } else if (groupResponse.status === 404) {
-        setError("Group not found or you don't have access to it");
-        return;
+        console.log("📁 Group loaded:", groupData.group.name);
       } else {
-        throw new Error("Failed to load group");
+        setError("Failed to load group details");
+        return;
       }
-      
-      // Load group messages
-      const messagesResponse = await fetch(`/api/groups/${groupId}/messages`);
+
+      // Load messages
+      const messagesResponse = await fetch(
+        `/api/groups/${groupId}/messages`
+      );
       if (messagesResponse.ok) {
         const messagesData = await messagesResponse.json();
-        console.log("📬 Loaded group messages from API:", messagesData.messages.length);
-        
-        const formattedMessages = messagesData.messages.map((msg: ApiMessage) => ({
-          id: msg.id,
-          content: msg.content,
-          createdAt: msg.createdAt,
-          senderId: msg.sender.id,
-          groupId: msg.group?.id,
-          senderUsername: msg.sender.username,
-          groupName: msg.group?.name,
-          status: msg.status,
-          type: "group" as const,
-        }));
-        
+        const formattedMessages: Message[] = messagesData.messages.map(
+          (msg: ApiMessage) => ({
+            id: msg.id,
+            content: msg.content,
+            createdAt: msg.createdAt,
+            senderId: msg.sender.id,
+            groupId: msg.group?.id,
+            senderUsername: msg.sender.username,
+            groupName: msg.group?.name,
+            status: msg.status,
+            type: "group" as const,
+            imageUrl: msg.imageUrl,
+            imageFilename: msg.imageFilename,
+            imageMimeType: msg.imageMimeType,
+            imageSize: msg.imageSize,
+          })
+        );
         setMessages(formattedMessages);
-      } else if (messagesResponse.status === 403) {
-        setError("You are not a member of this group");
-        return;
+        console.log(`💬 ${formattedMessages.length} messages loaded`);
       }
     } catch (error) {
       console.error("Failed to load group data:", error);
-      setError("Failed to load group. Please try again.");
+      setError("Failed to load group data");
     }
   }, [groupId]);
 
@@ -275,18 +268,28 @@ function ChatGroupPageContent() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !groupId || !currentUser) return;
+    if ((!newMessage.trim() && !pendingImage) || !groupId || !currentUser) return;
 
     const messageText = newMessage.trim();
+    const imageData = pendingImage;
     setNewMessage("");
+    setPendingImage(null);
+
+    const messagePayload = {
+      content: messageText,
+      groupId: groupId,
+      ...(imageData && {
+        imageUrl: imageData.url,
+        imageFilename: imageData.filename,
+        imageMimeType: imageData.mimeType,
+        imageSize: imageData.size,
+      }),
+    };
 
     // Send via Socket.IO if connected, otherwise fall back to HTTP
     if (isConnected && sendGroupMessage) {
       console.log("📤 Sending group message via Socket.IO");
-      sendGroupMessage({
-        content: messageText,
-        groupId: groupId,
-      });
+      sendGroupMessage(messagePayload);
     } else {
       // Fallback to HTTP API
       console.log("📤 Sending group message via HTTP API");
@@ -296,9 +299,7 @@ function ChatGroupPageContent() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            content: messageText,
-          }),
+          body: JSON.stringify(messagePayload),
         });
 
         if (response.ok) {
@@ -314,6 +315,16 @@ function ChatGroupPageContent() {
         setError("Failed to send message. Please try again.");
       }
     }
+  };
+
+  const handleImageUploaded = (imageData: PendingImage) => {
+    setPendingImage(imageData);
+    setError(""); // Clear any previous errors
+  };
+
+  const handleUploadError = (errorMessage: string) => {
+    setError(errorMessage);
+    setPendingImage(null);
   };
 
   const handleTyping = () => {
@@ -332,19 +343,6 @@ function ChatGroupPageContent() {
     }
   };
 
-  const formatMessageTime = (createdAt: string) => {
-    const date = new Date(createdAt);
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
-    
-    if (isToday) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } else {
-      return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + 
-             ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-  };
-
   const isOwner = group && currentUser && group.owner.id === currentUser.id;
 
   if (isLoading) {
@@ -358,7 +356,7 @@ function ChatGroupPageContent() {
     );
   }
 
-  if (error) {
+  if (error && !group) {
     return (
       <div className="flex h-screen bg-black text-white">
         <ContactsSidebar currentUser={currentUser} activeGroupId={groupId} />
@@ -431,34 +429,27 @@ function ChatGroupPageContent() {
           {messages.length === 0 ? (
             <div className="text-center text-zinc-500 mt-8">
               <p className="text-lg font-light">Welcome to {group.name}!</p>
-              <p className="text-sm">Start the conversation by sending a message.</p>
+              <p className="text-sm">Start the conversation by sending a message or share an image.</p>
+              <p className="text-xs mt-2 text-zinc-600">
+                Tip: Use **bold**, _italic_, or `code` formatting in your messages
+              </p>
             </div>
           ) : (
             messages.map((message, index) => {
               const isOwnMessage = message.senderId === currentUser?.id;
-              const showAvatar = index === 0 || messages[index - 1].senderId !== message.senderId;
+              const showSender = index === 0 || messages[index - 1].senderId !== message.senderId;
               
               return (
-                <div key={message.id} className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-xs lg:max-w-md ${isOwnMessage ? 'order-2' : 'order-1'}`}>
-                    {!isOwnMessage && showAvatar && (
-                      <div className="text-xs text-zinc-400 mb-1 ml-2">
-                        {message.senderUsername}
-                      </div>
-                    )}
-                    <div className={`message-bubble ${isOwnMessage ? 'sent' : 'received'}`}>
-                      <div className="text-sm">{message.content}</div>
-                      <div className="text-xs opacity-70 mt-1">
-                        {formatMessageTime(message.createdAt)}
-                        {isOwnMessage && message.status && (
-                          <span className="ml-2">
-                            {message.status === 'DELIVERED' ? '✓✓' : '✓'}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <MessageBubble
+                  key={message.id}
+                  content={message.content}
+                  imageUrl={message.imageUrl}
+                  imageFilename={message.imageFilename}
+                  isOwnMessage={isOwnMessage}
+                  timestamp={message.createdAt}
+                  senderUsername={message.senderUsername}
+                  showSender={!isOwnMessage && showSender}
+                />
               );
             })
           )}
@@ -484,7 +475,43 @@ function ChatGroupPageContent() {
 
         {/* Message Input */}
         <div className="border-t border-zinc-900 p-4">
+          {pendingImage && (
+            <div className="mb-3 p-3 bg-zinc-900 rounded-lg border border-zinc-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-zinc-800 rounded-lg overflow-hidden">
+                    <Image
+                      src={pendingImage.url}
+                      alt="Preview"
+                      width={48}
+                      height={48}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="text-sm">
+                    <div className="text-white">{pendingImage.filename}</div>
+                    <div className="text-zinc-400 text-xs">
+                      {(pendingImage.size / 1024 / 1024).toFixed(2)} MB
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setPendingImage(null)}
+                  className="text-zinc-400 hover:text-white transition-colors"
+                  title="Remove image"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
+          
           <form onSubmit={handleSendMessage} className="flex space-x-3">
+            <ImageUpload
+              onImageUploaded={handleImageUploaded}
+              onUploadError={handleUploadError}
+              disabled={isLoading}
+            />
             <input
               type="text"
               value={newMessage}
@@ -498,13 +525,13 @@ function ChatGroupPageContent() {
                   handleSendMessage(e);
                 }
               }}
-              placeholder={`Message ${group.name}...`}
+              placeholder={`Message ${group.name}... (use **bold**, _italic_, \`code\`)`}
               className="input-field flex-1"
               autoFocus
             />
             <button
               type="submit"
-              disabled={!newMessage.trim()}
+              disabled={!newMessage.trim() && !pendingImage}
               className="btn-primary px-6 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               SEND

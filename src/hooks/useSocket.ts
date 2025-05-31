@@ -13,6 +13,10 @@ interface Message {
   groupName?: string;
   status: string;
   type?: "direct" | "group";
+  imageUrl?: string | null;
+  imageFilename?: string | null;
+  imageMimeType?: string | null;
+  imageSize?: number | null;
 }
 
 interface UseSocketOptions {
@@ -29,11 +33,19 @@ interface UseSocketOptions {
 interface UseSocketReturn {
   isConnected: boolean;
   sendMessage: (content: string, receiverUsername: string) => void;
-  sendGroupMessage?: (data: { content: string; groupId: string }) => void;
+  sendGroupMessage?: (data: { 
+    content: string; 
+    groupId: string;
+    imageUrl?: string;
+    imageFilename?: string;
+    imageMimeType?: string;
+    imageSize?: number;
+  }) => void;
   startTyping: (receiverUsername: string) => void;
   stopTyping: (receiverUsername: string) => void;
   startGroupTyping?: (data: { groupId: string }) => void;
   stopGroupTyping?: (data: { groupId: string }) => void;
+  joinGroup?: (groupId: string) => void;
   checkUserOnline: (username: string) => void;
   connectionType: "websocket" | "polling" | "disconnected";
 }
@@ -470,7 +482,14 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
   }, [isConnected]);
 
   // Group messaging functions
-  const sendGroupMessage = useCallback((data: { content: string; groupId: string }) => {
+  const sendGroupMessage = useCallback((data: { 
+    content: string; 
+    groupId: string;
+    imageUrl?: string;
+    imageFilename?: string;
+    imageMimeType?: string;
+    imageSize?: number;
+  }) => {
     // Create optimistic message for immediate UI update
     const optimisticMessage: Message = {
       id: `temp-${Date.now()}-${Math.random()}`,
@@ -481,6 +500,10 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
       senderUsername: "current-user",
       status: "SENDING",
       type: "group",
+      imageUrl: data.imageUrl,
+      imageFilename: data.imageFilename,
+      imageMimeType: data.imageMimeType,
+      imageSize: data.imageSize,
     };
 
     // Immediately show the message in the UI
@@ -494,7 +517,13 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
         const response = await fetch(`/api/groups/${data.groupId}/messages`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: data.content }),
+          body: JSON.stringify({ 
+            content: data.content,
+            imageUrl: data.imageUrl,
+            imageFilename: data.imageFilename,
+            imageMimeType: data.imageMimeType,
+            imageSize: data.imageSize,
+          }),
         });
         
         const responseData = await response.json();
@@ -553,6 +582,14 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
     }
   }, [isConnected]);
 
+  // Explicitly join a group room
+  const joinGroup = useCallback((groupId: string) => {
+    if (socketRef.current?.connected && isConnected && groupId) {
+      console.log("🏠 Explicitly joining group room:", groupId);
+      socketRef.current.emit("join_group", { groupId });
+    }
+  }, [isConnected]);
+
   // Initialize on mount and cleanup on unmount
   useEffect(() => {
     isMountedRef.current = true;
@@ -574,6 +611,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
     stopTyping,
     startGroupTyping,
     stopGroupTyping,
+    joinGroup,
     checkUserOnline,
     connectionType,
   };

@@ -49,10 +49,18 @@ export async function GET(
       }
     }
 
-    // Fetch group messages
+    // Fetch group messages with image fields
     const messages = await prisma.message.findMany({
       where: whereConditions,
-      include: {
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        status: true,
+        imageUrl: true,
+        imageFilename: true,
+        imageMimeType: true,
+        imageSize: true,
         sender: {
           select: { id: true, username: true }
         },
@@ -87,10 +95,17 @@ export async function POST(
 
     const userId = authResult.userId!;
     const { id: groupId } = await params;
-    const { content } = await request.json();
+    const { 
+      content, 
+      imageUrl, 
+      imageFilename, 
+      imageMimeType, 
+      imageSize 
+    } = await request.json();
 
-    if (!content || typeof content !== 'string' || content.trim().length === 0) {
-      return NextResponse.json({ error: 'Message content is required' }, { status: 400 });
+    // Validation - either content or image is required
+    if ((!content || content.trim().length === 0) && !imageUrl) {
+      return NextResponse.json({ error: 'Either content or image is required' }, { status: 400 });
     }
 
     // Check if user is a member of the group
@@ -115,10 +130,14 @@ export async function POST(
     // Create group message
     const message = await prisma.message.create({
       data: {
-        content: content.trim(),
+        content: content ? content.trim() : "",
         senderId: userId,
         groupId,
         status: 'SENT',
+        imageUrl,
+        imageFilename,
+        imageMimeType,
+        imageSize,
       },
       include: {
         sender: {
@@ -142,6 +161,10 @@ export async function POST(
         groupName: message.group?.name,
         status: message.status,
         type: 'group',
+        imageUrl: message.imageUrl,
+        imageFilename: message.imageFilename,
+        imageMimeType: message.imageMimeType,
+        imageSize: message.imageSize,
       },
     }, { status: 201 });
   } catch (error) {

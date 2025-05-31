@@ -56,6 +56,18 @@
     @apply bg-zinc-950 border-r border-zinc-900;
   }
 
+  .message-bubble {
+    @apply rounded-lg px-4 py-3 max-w-xs lg:max-w-md break-words;
+  }
+
+  .message-bubble.sent {
+    @apply bg-white text-black;
+  }
+
+  .message-bubble.received {
+    @apply bg-zinc-900 text-white border border-zinc-800;
+  }
+
   .message-bubble-sent {
     @apply bg-white text-black rounded-sm px-4 py-2 max-w-xs;
   }

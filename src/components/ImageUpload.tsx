@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import Image from 'next/image';
 
 interface ImageUploadProps {
   onImageUploaded: (imageData: {
@@ -20,7 +19,6 @@ export default function ImageUpload({
   disabled = false,
 }: ImageUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,13 +38,6 @@ export default function ImageUpload({
       onUploadError('File size must be less than 10MB');
       return;
     }
-
-    // Create preview
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setPreviewUrl(e.target?.result as string);
-    };
-    reader.readAsDataURL(file);
 
     // Upload file
     uploadFile(file);
@@ -75,20 +66,12 @@ export default function ImageUpload({
     } catch (error) {
       console.error('Upload error:', error);
       onUploadError(error instanceof Error ? error.message : 'Upload failed');
-      setPreviewUrl(null);
     } finally {
       setIsUploading(false);
       // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-    }
-  };
-
-  const clearPreview = () => {
-    setPreviewUrl(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
     }
   };
 
@@ -129,31 +112,6 @@ export default function ImageUpload({
           </svg>
         )}
       </label>
-
-      {previewUrl && (
-        <div className="absolute bottom-12 left-0 p-2 bg-zinc-900 border border-zinc-700 rounded-lg shadow-lg">
-          <div className="mt-3 relative">
-            <Image
-              src={previewUrl}
-              alt="Upload preview"
-              width={200}
-              height={200}
-              className="max-w-full h-auto max-h-32 rounded-lg object-cover"
-              unoptimized
-            />
-            <button
-              onClick={clearPreview}
-              className="absolute top-1 right-1 bg-black bg-opacity-50 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-opacity-70"
-              title="Remove image"
-            >
-              ✕
-            </button>
-          </div>
-          <div className="text-xs text-zinc-400 mt-1 text-center">
-            {isUploading ? 'Uploading...' : 'Ready to send'}
-          </div>
-        </div>
-      )}
     </div>
   );
 } 

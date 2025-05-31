@@ -43,7 +43,9 @@ model Message {
   id        String   @id @default(cuid())
   content   String
   fts       Unsupported("tsvector")?  // Full-text search vector
+  status    MessageStatus @default(SENT)  // Delivery status
   createdAt DateTime @default(now())
+  deliveredAt DateTime?  // When message was delivered to recipient
 
   // Sender of the message
   senderId String
@@ -57,6 +59,7 @@ model Message {
   @@index([senderId, receiverId, createdAt])
   @@index([receiverId, senderId, createdAt])
   @@index([fts], map: "messages_fts_idx", type: Gin)
+  @@index([status])
 }
 
 model Contact {
@@ -103,4 +106,9 @@ enum ContactInvitationStatus {
   PENDING
   ACCEPTED
   REJECTED
+}
+
+enum MessageStatus {
+  SENT      // Message sent to server
+  DELIVERED // Message delivered to recipient
 }

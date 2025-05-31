@@ -251,12 +251,12 @@ Each milestone is released as its own pull request and Git tag. Tick the boxes t
 - [x] **GET** `/api/search?q=` returns ranked matches
 - [x] Search bar on top of chat list with instant results
 
-### M4 – WebSocket Realtime ⚡
+### M4 – WebSocket Realtime ⚡ ✅
 
-- [ ] Upgrade long‑poll to WebSocket handshake
-- [ ] In‑memory queue delivers message to connected peers
-- [ ] Delivery **ACK** updates message status to _delivered_
-- [ ] Fallback to polling when WebSocket unsupported
+- [x] Upgrade long‑poll to WebSocket handshake
+- [x] In‑memory queue delivers message to connected peers
+- [x] Delivery **ACK** updates message status to _delivered_
+- [x] Fallback to polling when WebSocket unsupported
 
 ### M5 – Group Chats 👥
 

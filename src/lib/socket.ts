@@ -1,0 +1,447 @@
+import { Server as SocketIOServer, Socket } from "socket.io";
+import { Server as HTTPServer } from "http";
+import { NextApiRequest } from "next";
+import { parse } from "cookie";
+import { verifyJWT } from "./auth";
+import { prisma } from "./db";
+
+interface AuthenticatedSocket extends Socket {
+  userId?: string;
+  username?: string;
+}
+
+interface MessageData {
+  id: string;
+  content: string;
+  senderId: string;
+  receiverId: string;
+  senderUsername: string;
+  receiverUsername: string;
+  createdAt: string;
+  status: string;
+}
+
+// In-memory store for connected users
+const connectedUsers = new Map<string, string>(); // userId -> socketId
+const userSockets = new Map<string, AuthenticatedSocket>(); // socketId -> socket
+
+// Message queue for offline users
+const messageQueue = new Map<string, MessageData[]>(); // userId -> messages[]
+
+let io: SocketIOServer | null = null;
+
+export function initializeSocket(server: HTTPServer) {
+  if (io) {
+    return io;
+  }
+
+  io = new SocketIOServer(server, {
+    cors: {
+      origin: process.env.NODE_ENV === "production" ? false : ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://127.0.0.1:3002"],
+      methods: ["GET", "POST"],
+      credentials: true,
+    },
+    path: "/api/socketio",
+    transports: ["polling", "websocket"],
+    allowEIO3: true,
+    pingTimeout: 60000,
+    pingInterval: 25000,
+    upgradeTimeout: 10000,
+    maxHttpBufferSize: 1e6,
+    connectTimeout: 20000,
+    allowRequest: (req, callback) => {
+      // Allow all requests in development
+      callback(null, true);
+    },
+    serveClient: false,
+    cookie: {
+      name: "io",
+      httpOnly: true,
+      sameSite: "lax",
+    },
+    cleanupEmptyChildNamespaces: true,
+    // Improved session management
+    adapter: undefined, // Use default memory adapter
+    connectionStateRecovery: {
+      // Reduce disconnection tolerance to improve stability
+      maxDisconnectionDuration: 30 * 1000, // 30 seconds
+      skipMiddlewares: false,
+    },
+  });
+
+  // Authentication middleware
+  io.use(async (socket: Socket, next) => {
+    try {
+      const req = socket.request as NextApiRequest;
+      const cookies = parse(req.headers.cookie || "");
+      const token = cookies["auth-token"];
+
+      if (!token) {
+        console.log("Socket connection rejected: No auth token");
+        return next(new Error("Authentication required"));
+      }
+
+      const payload = await verifyJWT(token);
+      if (!payload || !payload.userId) {
+        console.log("Socket connection rejected: Invalid token");
+        return next(new Error("Invalid token"));
+      }
+
+      // Get user details
+      const user = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { id: true, username: true },
+      });
+
+      if (!user) {
+        console.log("Socket connection rejected: User not found");
+        return next(new Error("User not found"));
+      }
+
+      (socket as AuthenticatedSocket).userId = user.id;
+      (socket as AuthenticatedSocket).username = user.username;
+      
+      console.log(`Socket authentication successful for user: ${user.username}`);
+      next();
+    } catch (error) {
+      console.error("Socket authentication error:", error);
+      next(new Error("Authentication failed"));
+    }
+  });
+
+  io.on("connection", (socket: Socket) => {
+    const authSocket = socket as AuthenticatedSocket;
+    console.log(`🔗 User ${authSocket.username} connected with socket ${authSocket.id}`);
+
+    if (authSocket.userId) {
+      // Store user connection
+      connectedUsers.set(authSocket.userId, authSocket.id);
+      userSockets.set(authSocket.id, authSocket);
+      
+      console.log(`👤 User mapping: ${authSocket.username} (${authSocket.userId}) -> ${authSocket.id}`);
+      console.log(`📊 Total connected users: ${connectedUsers.size}`);
+
+      // Join user to their personal room for direct messaging
+      authSocket.join(`user:${authSocket.userId}`);
+      console.log(`🏠 User ${authSocket.username} joined room: user:${authSocket.userId}`);
+
+      // Deliver any queued messages
+      deliverQueuedMessages(authSocket.userId);
+
+      // Handle connection test
+      authSocket.on("connection_test", (data) => {
+        console.log(`🧪 Connection test from ${authSocket.username}:`, data);
+        authSocket.emit("connection_test_response", { 
+          ...data, 
+          serverTime: Date.now(),
+          userId: authSocket.userId,
+          socketId: authSocket.id 
+        });
+      });
+
+      // Handle message sending
+      authSocket.on("send_message", async (data: {
+        content: string;
+        receiverUsername: string;
+      }) => {
+        try {
+          console.log(`📤 Handling send_message from ${authSocket.username}:`, data);
+          await handleSendMessage(authSocket, data);
+        } catch (error) {
+          console.error("Send message error:", error);
+          authSocket.emit("message_error", { error: "Failed to send message" });
+        }
+      });
+
+      // Handle message acknowledgment
+      authSocket.on("message_delivered", async (data: { messageId: string }) => {
+        try {
+          console.log(`Message delivered ACK from ${authSocket.username}:`, data.messageId);
+          await handleMessageDelivered(authSocket, data.messageId);
+        } catch (error) {
+          console.error("Message delivery ACK error:", error);
+        }
+      });
+
+      // Handle typing indicators
+      authSocket.on("typing_start", (data: { receiverUsername: string }) => {
+        console.log(`${authSocket.username} started typing to ${data.receiverUsername}`);
+        handleTypingIndicator(authSocket, data.receiverUsername, true);
+      });
+
+      authSocket.on("typing_stop", (data: { receiverUsername: string }) => {
+        console.log(`${authSocket.username} stopped typing to ${data.receiverUsername}`);
+        handleTypingIndicator(authSocket, data.receiverUsername, false);
+      });
+
+      authSocket.on("disconnect", (reason) => {
+        console.log(`User ${authSocket.username} disconnected: ${reason}`);
+        
+        // Clean up user connections
+        if (authSocket.userId) {
+          connectedUsers.delete(authSocket.userId);
+        }
+        userSockets.delete(authSocket.id);
+        
+        // Don't log client-side disconnects as errors
+        if (reason !== "client namespace disconnect" && reason !== "transport close") {
+          console.log(`Connection cleanup completed for ${authSocket.username}`);
+        }
+      });
+
+      authSocket.on("error", (error) => {
+        console.error(`Socket error for ${authSocket.username}:`, error);
+        // Don't force disconnect on errors, let Socket.IO handle it
+      });
+
+      // Handle connection errors more gracefully
+      authSocket.on("connect_error", (error) => {
+        console.error(`Connection error for ${authSocket.username}:`, error);
+        // Don't force actions on connection errors
+      });
+
+      // Add error handling for the socket itself
+      authSocket.on("disconnect", () => {
+        // Additional cleanup if needed
+        if (authSocket.userId) {
+          console.log(`Final cleanup for user ${authSocket.username}`);
+        }
+      });
+
+    } else {
+      console.error("Socket connected without proper authentication");
+      authSocket.disconnect(true);
+    }
+  });
+
+  // Handle server-level errors more gracefully
+  io.engine.on("connection_error", (err) => {
+    console.error("Socket.IO connection error:", err.message || err);
+    // Don't crash the server on connection errors
+  });
+
+  // Add engine error handling
+  io.engine.on("initial_headers", (headers, req) => {
+    // Add any custom headers if needed
+  });
+
+  // Handle upgrade errors
+  io.engine.on("upgrade_error", (err) => {
+    console.log("Socket.IO upgrade error (non-critical):", err.message || err);
+    // These are often non-critical
+  });
+
+  return io;
+}
+
+async function handleSendMessage(
+  socket: AuthenticatedSocket,
+  data: { content: string; receiverUsername: string }
+) {
+  if (!socket.userId || !socket.username) {
+    throw new Error("Unauthorized");
+  }
+
+  const { content, receiverUsername } = data;
+
+  // Validation
+  if (!content || !receiverUsername || content.trim().length === 0) {
+    socket.emit("message_error", { error: "Invalid message data" });
+    return;
+  }
+
+  try {
+    // Find receiver
+    const receiver = await prisma.user.findUnique({
+      where: { username: receiverUsername },
+      select: { id: true, username: true },
+    });
+
+    if (!receiver) {
+      console.log(`❌ Receiver not found: ${receiverUsername}`);
+      socket.emit("message_error", { error: "Receiver not found" });
+      return;
+    }
+
+    console.log(`📝 Creating message from ${socket.username} to ${receiver.username}`);
+
+    // Create message in database
+    const message = await prisma.message.create({
+      data: {
+        content: content.trim(),
+        senderId: socket.userId,
+        receiverId: receiver.id,
+        status: "SENT",
+      },
+      include: {
+        sender: { select: { id: true, username: true } },
+        receiver: { select: { id: true, username: true } },
+      },
+    });
+
+    const messageData: MessageData = {
+      id: message.id,
+      content: message.content,
+      senderId: message.senderId,
+      receiverId: message.receiverId,
+      senderUsername: message.sender.username,
+      receiverUsername: message.receiver.username,
+      createdAt: message.createdAt.toISOString(),
+      status: message.status,
+    };
+
+    console.log(`💾 Message saved to database:`, {
+      id: message.id,
+      from: messageData.senderUsername,
+      to: messageData.receiverUsername,
+      content: messageData.content.substring(0, 50) + "..."
+    });
+
+    // Send confirmation to sender
+    console.log(`📤 Sending confirmation to sender: ${socket.username}`);
+    socket.emit("message_sent", messageData);
+
+    // Try to deliver to receiver immediately
+    const receiverSocketId = connectedUsers.get(receiver.id);
+    console.log(`🔍 Looking for receiver ${receiver.username} (${receiver.id})`);
+    console.log(`🗺️ Connected users map:`, Array.from(connectedUsers.entries()));
+    
+    if (receiverSocketId) {
+      console.log(`🎯 Found receiver socket ID: ${receiverSocketId}`);
+      const receiverSocket = userSockets.get(receiverSocketId);
+      
+      if (receiverSocket) {
+        console.log(`📨 Delivering message to ${receiver.username} via socket ${receiverSocketId}`);
+        receiverSocket.emit("new_message", messageData);
+        
+        // Mark as delivered immediately if receiver is online
+        await prisma.message.update({
+          where: { id: message.id },
+          data: {
+            status: "DELIVERED",
+            deliveredAt: new Date(),
+          },
+        });
+
+        console.log(`✅ Message marked as delivered in database`);
+        
+        // Notify sender of delivery
+        socket.emit("message_delivered", { messageId: message.id });
+        console.log(`📬 Delivery notification sent to sender`);
+      } else {
+        console.log(`❌ Receiver socket not found in userSockets map`);
+        console.log(`🗺️ UserSockets map:`, Array.from(userSockets.keys()));
+        // Queue message for offline user
+        queueMessage(receiver.id, messageData);
+        console.log(`📥 Message queued for offline user: ${receiver.username}`);
+      }
+    } else {
+      console.log(`❌ Receiver ${receiver.username} not found in connectedUsers map`);
+      // Queue message for offline user
+      queueMessage(receiver.id, messageData);
+      console.log(`📥 Message queued for offline user: ${receiver.username}`);
+    }
+  } catch (error) {
+    console.error("❌ Database error in handleSendMessage:", error);
+    socket.emit("message_error", { error: "Failed to save message" });
+  }
+}
+
+async function handleMessageDelivered(socket: AuthenticatedSocket, messageId: string) {
+  if (!socket.userId) return;
+
+  // Update message status in database
+  await prisma.message.update({
+    where: { id: messageId },
+    data: {
+      status: "DELIVERED",
+      deliveredAt: new Date(),
+    },
+  });
+
+  // Find the sender and notify them
+  const message = await prisma.message.findUnique({
+    where: { id: messageId },
+    include: { sender: true },
+  });
+
+  if (message) {
+    const senderSocketId = connectedUsers.get(message.senderId);
+    if (senderSocketId) {
+      const senderSocket = userSockets.get(senderSocketId);
+      if (senderSocket) {
+        senderSocket.emit("message_delivered", { messageId });
+      }
+    }
+  }
+}
+
+function handleTypingIndicator(
+  socket: AuthenticatedSocket,
+  receiverUsername: string,
+  isTyping: boolean
+) {
+  if (!socket.userId || !socket.username) return;
+
+  // Find receiver and send typing indicator
+  prisma.user.findUnique({
+    where: { username: receiverUsername },
+    select: { id: true },
+  }).then((receiver) => {
+    if (receiver) {
+      const receiverSocketId = connectedUsers.get(receiver.id);
+      if (receiverSocketId) {
+        const receiverSocket = userSockets.get(receiverSocketId);
+        if (receiverSocket) {
+          receiverSocket.emit("typing_indicator", {
+            username: socket.username,
+            isTyping,
+          });
+        }
+      }
+    }
+  });
+}
+
+function queueMessage(userId: string, message: MessageData) {
+  if (!messageQueue.has(userId)) {
+    messageQueue.set(userId, []);
+  }
+  messageQueue.get(userId)!.push(message);
+}
+
+async function deliverQueuedMessages(userId: string) {
+  const queuedMessages = messageQueue.get(userId);
+  if (!queuedMessages || queuedMessages.length === 0) {
+    return;
+  }
+
+  const socketId = connectedUsers.get(userId);
+  if (!socketId) return;
+
+  const socket = userSockets.get(socketId);
+  if (!socket) return;
+
+  // Deliver all queued messages
+  for (const message of queuedMessages) {
+    socket.emit("new_message", message);
+    
+    // Mark as delivered
+    await prisma.message.update({
+      where: { id: message.id },
+      data: {
+        status: "DELIVERED",
+        deliveredAt: new Date(),
+      },
+    });
+  }
+
+  // Clear the queue
+  messageQueue.delete(userId);
+}
+
+export function getIO(): SocketIOServer | null {
+  return io;
+}
+
+export { connectedUsers, userSockets }; 

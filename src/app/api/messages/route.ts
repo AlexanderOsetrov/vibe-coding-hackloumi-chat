@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
         content: content.trim(),
         senderId: authUser.userId,
         receiverId: receiver.id,
+        status: "SENT", // Initial status
       },
       include: {
         sender: {
@@ -58,7 +59,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         message: "Message sent successfully",
-        data: message,
+        data: {
+          id: message.id,
+          content: message.content,
+          createdAt: message.createdAt.toISOString(),
+          senderId: message.senderId,
+          receiverId: message.receiverId,
+          senderUsername: message.sender.username,
+          receiverUsername: message.receiver.username,
+          status: message.status,
+        },
       },
       { status: 201 }
     );

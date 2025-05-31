@@ -1,0 +1,321 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
+interface Contact {
+  id: string;
+  user: {
+    id: string;
+    username: string;
+    createdAt: string;
+  };
+  createdAt: string;
+}
+
+interface Invitation {
+  id: string;
+  sender?: {
+    id: string;
+    username: string;
+    createdAt: string;
+  };
+  receiver?: {
+    id: string;
+    username: string;
+    createdAt: string;
+  };
+  createdAt: string;
+}
+
+interface ContactsSidebarProps {
+  currentUser: {
+    id: string;
+    username: string;
+  } | null;
+  activeContactUsername?: string;
+}
+
+export default function ContactsSidebar({
+  currentUser,
+  activeContactUsername,
+}: ContactsSidebarProps) {
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [receivedInvitations, setReceivedInvitations] = useState<Invitation[]>(
+    []
+  );
+  const [sentInvitations, setSentInvitations] = useState<Invitation[]>([]);
+  const [newContactUsername, setNewContactUsername] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSendingInvite, setIsSendingInvite] = useState(false);
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const router = useRouter();
+
+  const loadData = async () => {
+    try {
+      const [contactsRes, invitationsRes] = await Promise.all([
+        fetch("/api/contacts"),
+        fetch("/api/contacts/invitations"),
+      ]);
+
+      if (contactsRes.ok) {
+        const contactsData = await contactsRes.json();
+        setContacts(contactsData.contacts || []);
+      }
+
+      if (invitationsRes.ok) {
+        const invitationsData = await invitationsRes.json();
+        setReceivedInvitations(invitationsData.received || []);
+        setSentInvitations(invitationsData.sent || []);
+      }
+    } catch (error) {
+      console.error("Failed to load contacts/invitations:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser) {
+      loadData();
+    }
+  }, [currentUser]);
+
+  const sendInvitation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newContactUsername.trim() || isSendingInvite) return;
+
+    setIsSendingInvite(true);
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      const response = await fetch("/api/contacts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: newContactUsername.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccessMessage(`Invitation sent to ${data.targetUser.username}`);
+        setNewContactUsername("");
+        loadData(); // Refresh data
+      } else {
+        setError(data.error || "Failed to send invitation");
+      }
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setIsSendingInvite(false);
+    }
+  };
+
+  const handleInvitation = async (
+    invitationId: string,
+    action: "accept" | "reject"
+  ) => {
+    try {
+      const response = await fetch(
+        `/api/contacts/invitations/${invitationId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action }),
+        }
+      );
+
+      if (response.ok) {
+        setSuccessMessage(`Invitation ${action}ed successfully`);
+        loadData(); // Refresh data
+      } else {
+        const data = await response.json();
+        setError(data.error || `Failed to ${action} invitation`);
+      }
+    } catch {
+      setError("Network error. Please try again.");
+    }
+  };
+
+  const removeContact = async (contactId: string) => {
+    if (!confirm("Are you sure you want to remove this contact?")) return;
+
+    try {
+      const response = await fetch(`/api/contacts/${contactId}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setSuccessMessage("Contact removed successfully");
+        loadData(); // Refresh data
+      } else {
+        const data = await response.json();
+        setError(data.error || "Failed to remove contact");
+      }
+    } catch {
+      setError("Network error. Please try again.");
+    }
+  };
+
+  const startChat = (username: string) => {
+    router.push(`/chat/${username}`);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="w-80 sidebar p-6">
+        <div className="text-center text-zinc-500 font-light">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-80 sidebar flex flex-col h-full">
+      {/* Header */}
+      <div className="p-6 border-b border-zinc-900">
+        <h1 className="text-lg font-light text-white mb-6 tracking-wide">
+          CONTACTS
+        </h1>
+
+        {/* Add Contact Form */}
+        <form onSubmit={sendInvitation} className="space-y-3">
+          <input
+            type="text"
+            value={newContactUsername}
+            onChange={(e) => setNewContactUsername(e.target.value)}
+            placeholder="Enter username..."
+            className="input-field w-full text-sm"
+            disabled={isSendingInvite}
+          />
+          <button
+            type="submit"
+            disabled={isSendingInvite || !newContactUsername.trim()}
+            className="btn-primary w-full text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSendingInvite ? "SENDING..." : "SEND INVITATION"}
+          </button>
+        </form>
+
+        {/* Status Messages */}
+        {error && (
+          <div className="mt-3 p-3 bg-red-950 border border-red-900 text-red-300 rounded-sm text-xs">
+            {error}
+          </div>
+        )}
+        {successMessage && (
+          <div className="mt-3 p-3 bg-green-950 border border-green-900 text-green-300 rounded-sm text-xs">
+            {successMessage}
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {/* Pending Received Invitations */}
+        {receivedInvitations.length > 0 && (
+          <div className="p-6 border-b border-zinc-900">
+            <h2 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-4">
+              PENDING INVITATIONS ({receivedInvitations.length})
+            </h2>
+            <div className="space-y-2">
+              {receivedInvitations.map((invitation) => (
+                <div key={invitation.id} className="invitation-card">
+                  <div className="text-sm font-light text-white mb-3">
+                    {invitation.sender?.username}
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleInvitation(invitation.id, "accept")}
+                      className="px-3 py-1 bg-white text-black text-xs font-medium rounded-sm hover:bg-zinc-200 transition-all duration-200"
+                    >
+                      ACCEPT
+                    </button>
+                    <button
+                      onClick={() => handleInvitation(invitation.id, "reject")}
+                      className="px-3 py-1 bg-zinc-800 text-white text-xs font-medium rounded-sm border border-zinc-700 hover:border-zinc-600 transition-all duration-200"
+                    >
+                      REJECT
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Contacts List */}
+        <div className="p-6">
+          <h2 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-4">
+            MY CONTACTS ({contacts.length})
+          </h2>
+          {contacts.length === 0 ? (
+            <div className="text-sm text-zinc-500 font-light">
+              No contacts yet. Send an invitation to get started.
+            </div>
+          ) : (
+            <div className="space-y-0">
+              {contacts.map((contact) => (
+                <div
+                  key={contact.id}
+                  className={`contact-item group ${
+                    activeContactUsername === contact.user.username
+                      ? "active"
+                      : ""
+                  }`}
+                  onClick={() => startChat(contact.user.username)}
+                >
+                  <div className="flex-1">
+                    <div className="text-sm font-light text-white">
+                      {contact.user.username}
+                    </div>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeContact(contact.id);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-white text-xs p-1 transition-all duration-200"
+                    title="Remove contact"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Sent Invitations */}
+        {sentInvitations.length > 0 && (
+          <div className="p-6 border-t border-zinc-900">
+            <h2 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-4">
+              SENT INVITATIONS ({sentInvitations.length})
+            </h2>
+            <div className="space-y-2">
+              {sentInvitations.map((invitation) => (
+                <div
+                  key={invitation.id}
+                  className="flex items-center justify-between p-2 bg-zinc-900 rounded-sm border border-zinc-800"
+                >
+                  <div className="text-sm text-zinc-300 font-light">
+                    {invitation.receiver?.username}
+                  </div>
+                  <div className="text-xs text-zinc-500 uppercase tracking-wide">
+                    PENDING
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

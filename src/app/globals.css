@@ -2,20 +2,101 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@layer base {
+  body {
+    @apply bg-black text-white font-light antialiased;
+    font-family:
+      "Inter",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
+      sans-serif;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  input,
+  textarea,
+  select {
+    @apply bg-zinc-900 border-zinc-800 text-white placeholder-zinc-500;
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    @apply border-white ring-0 outline-none;
+  }
+
+  button {
+    @apply transition-all duration-200 ease-in-out;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .btn-primary {
+    @apply bg-white text-black hover:bg-zinc-200 px-4 py-2 font-medium rounded-sm transition-all duration-200;
+  }
+
+  .btn-secondary {
+    @apply bg-zinc-900 text-white border border-zinc-800 hover:border-white px-4 py-2 font-medium rounded-sm transition-all duration-200;
+  }
+
+  .btn-ghost {
+    @apply text-zinc-400 hover:text-white hover:bg-zinc-900 px-3 py-2 rounded-sm transition-all duration-200;
+  }
+
+  .card {
+    @apply bg-zinc-950 border border-zinc-900 rounded-sm;
+  }
+
+  .input-field {
+    @apply bg-zinc-950 border border-zinc-800 rounded-sm px-3 py-2 text-white placeholder-zinc-500 focus:border-white focus:ring-0 transition-all duration-200;
+  }
+
+  .sidebar {
+    @apply bg-zinc-950 border-r border-zinc-900;
+  }
+
+  .message-bubble-sent {
+    @apply bg-white text-black rounded-sm px-4 py-2 max-w-xs;
+  }
+
+  .message-bubble-received {
+    @apply bg-zinc-900 text-white border border-zinc-800 rounded-sm px-4 py-2 max-w-xs;
+  }
+
+  .contact-item {
+    @apply flex items-center justify-between p-3 hover:bg-zinc-900 cursor-pointer border-b border-zinc-900 transition-all duration-200;
+  }
+
+  .contact-item.active {
+    @apply bg-zinc-900 border-l-2 border-white;
+  }
+
+  .invitation-card {
+    @apply bg-zinc-900 border border-zinc-800 rounded-sm p-3 mb-2;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #404040;
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #606060;
+}
+
+/* Selection */
+::selection {
+  background: #ffffff;
+  color: #000000;
 }

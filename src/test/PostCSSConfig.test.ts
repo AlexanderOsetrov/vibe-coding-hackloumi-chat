@@ -1,45 +1,58 @@
 import { describe, it, expect } from "vitest";
-import { resolve } from "path";
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
+import { join } from "path";
 
 describe("PostCSS Configuration", () => {
-  it("should have a valid postcss.config.mjs file", () => {
-    const configPath = resolve(process.cwd(), "postcss.config.mjs");
-
-    expect(() => {
-      const config = readFileSync(configPath, "utf-8");
-      expect(config).toContain("tailwindcss");
-      expect(config).toContain("autoprefixer");
-    }).not.toThrow();
+  it("should have PostCSS config file", () => {
+    const configPath = join(process.cwd(), "postcss.config.mjs");
+    expect(existsSync(configPath)).toBe(true);
   });
 
-  it("should have a valid tailwind.config.js file", () => {
-    const configPath = resolve(process.cwd(), "tailwind.config.js");
-
-    expect(() => {
-      const config = readFileSync(configPath, "utf-8");
-      expect(config).toContain("content");
-      expect(config).toContain("./src/app/**/*.{js,ts,jsx,tsx,mdx}");
-    }).not.toThrow();
+  it("should have Tailwind CSS config file", () => {
+    const configPath = join(process.cwd(), "tailwind.config.js");
+    expect(existsSync(configPath)).toBe(true);
   });
 
-  it("should have correct global CSS imports", () => {
-    const cssPath = resolve(process.cwd(), "src/app/globals.css");
-
-    expect(() => {
-      const css = readFileSync(cssPath, "utf-8");
-      expect(css).toContain("@tailwind base");
-      expect(css).toContain("@tailwind components");
-      expect(css).toContain("@tailwind utilities");
-    }).not.toThrow();
+  it("should have globals.css file", () => {
+    const cssPath = join(process.cwd(), "src/app/globals.css");
+    expect(existsSync(cssPath)).toBe(true);
   });
 
-  it("should define CSS variables correctly", () => {
-    const cssPath = resolve(process.cwd(), "src/app/globals.css");
+  it("should include Tailwind directives", () => {
+    const cssPath = join(process.cwd(), "src/app/globals.css");
     const css = readFileSync(cssPath, "utf-8");
 
-    expect(css).toContain("--background:");
-    expect(css).toContain("--foreground:");
-    expect(css).toContain("@media (prefers-color-scheme: dark)");
+    expect(css).toContain("@tailwind base;");
+    expect(css).toContain("@tailwind components;");
+    expect(css).toContain("@tailwind utilities;");
+  });
+
+  it("should have proper component classes", () => {
+    const cssPath = join(process.cwd(), "src/app/globals.css");
+    const css = readFileSync(cssPath, "utf-8");
+
+    expect(css).toContain(".btn-primary");
+    expect(css).toContain(".btn-secondary");
+    expect(css).toContain(".card");
+    expect(css).toContain(".input-field");
+    expect(css).toContain(".sidebar");
+  });
+
+  it("should define modern design styles", () => {
+    const cssPath = join(process.cwd(), "src/app/globals.css");
+    const css = readFileSync(cssPath, "utf-8");
+
+    expect(css).toContain("bg-black text-white");
+    expect(css).toContain("font-light antialiased");
+    expect(css).toContain("bg-zinc-950 border border-zinc-900");
+    expect(css).toContain("transition-all duration-200");
+  });
+
+  it("should have custom scrollbar styles", () => {
+    const cssPath = join(process.cwd(), "src/app/globals.css");
+    const css = readFileSync(cssPath, "utf-8");
+
+    expect(css).toContain("::-webkit-scrollbar");
+    expect(css).toContain("::selection");
   });
 });

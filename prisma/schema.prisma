@@ -26,6 +26,16 @@ model User {
   // Messages received by this user
   receivedMessages Message[] @relation("MessageReceiver")
 
+  // Contacts where this user is the owner
+  contactsOwned    Contact[] @relation("ContactOwner")
+  // Contacts where this user is the contact
+  contactsReceived Contact[] @relation("ContactUser")
+
+  // Contact invitations sent by this user
+  sentInvitations     ContactInvitation[] @relation("InvitationSender")
+  // Contact invitations received by this user
+  receivedInvitations ContactInvitation[] @relation("InvitationReceiver")
+
   @@map("users")
 }
 
@@ -45,4 +55,50 @@ model Message {
   @@map("messages")
   @@index([senderId, receiverId, createdAt])
   @@index([receiverId, senderId, createdAt])
+}
+
+model Contact {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  // The user who owns this contact relationship
+  ownerId String
+  owner   User   @relation("ContactOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // The user who is the contact
+  contactId String
+  contact   User   @relation("ContactUser", fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, contactId])
+  @@map("contacts")
+  @@index([ownerId])
+  @@index([contactId])
+}
+
+model ContactInvitation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // The user who sent the invitation
+  senderId String
+  sender   User   @relation("InvitationSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  // The user who received the invitation
+  receiverId String
+  receiver   User   @relation("InvitationReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  // Status of the invitation
+  status ContactInvitationStatus @default(PENDING)
+
+  @@unique([senderId, receiverId])
+  @@map("contact_invitations")
+  @@index([receiverId, status])
+  @@index([senderId, status])
+}
+
+enum ContactInvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
 }

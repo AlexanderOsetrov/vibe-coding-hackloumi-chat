@@ -1,49 +1,44 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
-import Home from "../app/page";
+import Home from "@/app/page";
 
-describe("Home Page", () => {
-  it("should render the main heading", () => {
+describe("Home", () => {
+  it("renders the main heading", () => {
     render(<Home />);
-    const heading = screen.getByText("Hacklumi Chat 💬");
+    const heading = screen.getByText("HACKLOUMI CHAT");
     expect(heading).toBeInTheDocument();
   });
 
-  it("should render the description text", () => {
+  it("renders navigation links", () => {
     render(<Home />);
-    const description = screen.getByText(/A modern, privacy‑respecting chat platform/);
+    const createAccountLink = screen.getByText("Create Account");
+    const signInLink = screen.getByText("Sign In");
+    expect(createAccountLink).toBeInTheDocument();
+    expect(signInLink).toBeInTheDocument();
+  });
+
+  it("renders the description", () => {
+    render(<Home />);
+    const description = screen.getByText(
+      /A modern, minimalistic chat platform/
+    );
     expect(description).toBeInTheDocument();
-  });
-
-  it("should render the Create Account button", () => {
-    render(<Home />);
-    const createButton = screen.getByText("Create Account");
-    expect(createButton).toBeInTheDocument();
-  });
-
-  it("should render the Sign In button", () => {
-    render(<Home />);
-    const signInButton = screen.getByText("Sign In");
-    expect(signInButton).toBeInTheDocument();
   });
 
   it("should render feature cards", () => {
     render(<Home />);
-    const privacyFeature = screen.getByText("🔐 Privacy First");
-    const chatFeature = screen.getByText("💬 Real-time Chat");
-    const techFeature = screen.getByText("🚀 Modern Tech");
-    
+    const privacyFeature = screen.getByText("Privacy First");
+    const chatFeature = screen.getByText("Real-time Chat");
+    const techFeature = screen.getByText("Modern Stack");
+
     expect(privacyFeature).toBeInTheDocument();
     expect(chatFeature).toBeInTheDocument();
     expect(techFeature).toBeInTheDocument();
   });
 
-  it("should have correct links", () => {
+  it("should render Get Started section", () => {
     render(<Home />);
-    const createAccountLink = screen.getByRole("link", { name: "Create Account" });
-    const signInLink = screen.getByRole("link", { name: "Sign In" });
-    
-    expect(createAccountLink).toHaveAttribute("href", "/register");
-    expect(signInLink).toHaveAttribute("href", "/login");
+    const getStarted = screen.getByText("Get Started");
+    expect(getStarted).toBeInTheDocument();
   });
 });

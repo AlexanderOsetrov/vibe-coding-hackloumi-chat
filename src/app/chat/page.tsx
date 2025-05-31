@@ -1,122 +1,148 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import ContactsSidebar from "@/components/ContactsSidebar";
 
 interface User {
-  id: string
-  username: string
+  id: string;
+  username: string;
 }
 
 export default function ChatPage() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const router = useRouter()
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     // Check if user is authenticated by trying to fetch current user info
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/auth/me')
+        const response = await fetch("/api/auth/me");
         if (response.ok) {
-          const userData = await response.json()
-          setCurrentUser(userData.user)
+          const userData = await response.json();
+          setCurrentUser(userData.user);
         } else {
           // Not authenticated, redirect to login
-          router.push('/login')
+          router.push("/login");
         }
       } catch (error) {
-        console.error('Auth check failed:', error)
-        router.push('/login')
+        console.error("Auth check failed:", error);
+        router.push("/login");
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    checkAuth()
-  }, [router])
+    checkAuth();
+  }, [router]);
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
-      router.push('/login')
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/login");
     } catch (error) {
-      console.error('Logout failed:', error)
+      console.error("Logout failed:", error);
     }
-  }
+  };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="text-zinc-500 font-light">Loading...</div>
       </div>
-    )
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto py-8 px-4">
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900">
-              Welcome, {currentUser?.username}!
-            </h1>
+    <div className="min-h-screen bg-black flex">
+      {/* Contacts Sidebar */}
+      <ContactsSidebar currentUser={currentUser} />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="bg-zinc-950 border-b border-zinc-900 px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-light text-white tracking-wide">
+                WELCOME, {currentUser?.username?.toUpperCase()}
+              </h1>
+              <p className="text-zinc-500 text-sm font-light mt-1">
+                Select a contact to start chatting
+              </p>
+            </div>
             <button
               onClick={handleLogout}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+              className="btn-ghost text-sm font-medium uppercase tracking-wide"
             >
-              Logout
+              LOGOUT
             </button>
           </div>
-          
-          <div className="p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">
-              Start a conversation
-            </h2>
-            <p className="text-gray-600 mb-6">
-              To start chatting, enter a username in the URL like: <br />
-              <code className="bg-gray-100 px-2 py-1 rounded text-sm">
-                /chat/[username]
-              </code>
-            </p>
-            
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                  Chat with user:
-                </label>
-                <div className="flex space-x-2">
-                  <input
-                    type="text"
-                    id="username"
-                    placeholder="Enter username"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        const target = e.target as HTMLInputElement
-                        if (target.value.trim()) {
-                          router.push(`/chat/${target.value.trim()}`)
-                        }
-                      }
-                    }}
+        </div>
+
+        {/* Welcome Content */}
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="max-w-md mx-auto text-center">
+            <div className="card p-12">
+              <div className="w-20 h-20 border border-zinc-800 flex items-center justify-center mx-auto mb-8">
+                <svg
+                  className="w-8 h-8 text-zinc-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1}
+                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.955 8.955 0 01-2.985-.504L10 16H6c-1.105 0-2-.895-2-2V6c0-1.105.895-2 2-2h12c1.105 0 2 .895 2 2v6z"
                   />
-                  <button
-                    onClick={() => {
-                      const input = document.getElementById('username') as HTMLInputElement
-                      if (input.value.trim()) {
-                        router.push(`/chat/${input.value.trim()}`)
-                      }
-                    }}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    Start Chat
-                  </button>
+                </svg>
+              </div>
+
+              <h2 className="text-lg font-light text-white mb-2 tracking-wide">
+                START CHATTING
+              </h2>
+
+              <p className="text-zinc-500 text-sm font-light mb-8 leading-relaxed">
+                Use the sidebar to manage contacts and start conversations.
+                Connect with users by sending invitations.
+              </p>
+
+              <div className="space-y-4 text-xs text-zinc-600">
+                <div className="flex items-center justify-center">
+                  <div className="w-1 h-1 bg-white mr-3"></div>
+                  <span className="uppercase tracking-wider">
+                    Send invitations to connect
+                  </span>
+                </div>
+                <div className="flex items-center justify-center">
+                  <div className="w-1 h-1 bg-white mr-3"></div>
+                  <span className="uppercase tracking-wider">
+                    Accept or reject invitations
+                  </span>
+                </div>
+                <div className="flex items-center justify-center">
+                  <div className="w-1 h-1 bg-white mr-3"></div>
+                  <span className="uppercase tracking-wider">
+                    Click contacts to start chatting
+                  </span>
                 </div>
               </div>
+            </div>
+
+            <div className="mt-8 text-xs text-zinc-600 font-light">
+              <p className="uppercase tracking-wider">
+                Direct access via{" "}
+                <code className="bg-zinc-900 px-2 py-1 border border-zinc-800 text-zinc-400">
+                  /chat/[username]
+                </code>
+              </p>
             </div>
           </div>
         </div>
       </div>
     </div>
-  )
-} 
+  );
+}

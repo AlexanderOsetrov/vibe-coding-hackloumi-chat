@@ -47,7 +47,10 @@ jobs:
           cache: 'npm'
       
       - name: Install dependencies
-        run: HUSKY=0 npm ci
+        run: npm ci --ignore-scripts
+      
+      - name: Generate Prisma Client
+        run: npx prisma generate
       
       - name: Setup Infrastructure Tools
         uses: ./.github/actions/setup-infrastructure-tools

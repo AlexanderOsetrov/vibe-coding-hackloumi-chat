@@ -3,8 +3,11 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import ContactsSidebar from "@/components/ContactsSidebar";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import MessageBubble from "@/components/MessageBubble";
+import ImageUpload from "@/components/ImageUpload";
 import { useSocket } from "@/hooks/useSocket";
 
 interface ApiMessage {
@@ -14,17 +17,25 @@ interface ApiMessage {
   sender: { id: string; username: string };
   receiver: { id: string; username: string };
   status?: string;
+  imageUrl?: string | null;
+  imageFilename?: string | null;
+  imageMimeType?: string | null;
+  imageSize?: number | null;
 }
 
-interface Message {
+interface DirectMessage {
   id: string;
   content: string;
   createdAt: string;
   senderId: string;
-  receiverId: string;
+  receiverId?: string;
   senderUsername: string;
-  receiverUsername: string;
+  receiverUsername?: string;
   status?: string;
+  imageUrl?: string | null;
+  imageFilename?: string | null;
+  imageMimeType?: string | null;
+  imageSize?: number | null;
 }
 
 interface User {
@@ -32,15 +43,23 @@ interface User {
   username: string;
 }
 
+interface PendingImage {
+  url: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+}
+
 function ChatUserPageContent() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [typingUser, setTypingUser] = useState<string | null>(null);
   const [lastMessageCheck, setLastMessageCheck] = useState<Date>(new Date());
   const [isPeerOnline, setIsPeerOnline] = useState<boolean>(false);
+  const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
   const router = useRouter();
   const params = useParams();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -51,7 +70,8 @@ function ChatUserPageContent() {
 
   // Socket.IO hook with real-time messaging
   const { sendMessage: sendSocketMessage, startTyping, stopTyping, connectionType, isConnected, checkUserOnline } = useSocket({
-    onNewMessage: (message) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onNewMessage: (message: any) => {
       console.log("🎯 onNewMessage callback triggered:", message);
       console.log("Current user:", currentUser?.username);
       console.log("Peer username:", peerUsername);
@@ -75,7 +95,21 @@ function ChatUserPageContent() {
             return prev;
           }
           console.log("📥 Adding new received message to state:", message.id);
-          const newMessages = [...prev, message];
+          const newMsg: DirectMessage = {
+            id: message.id,
+            content: message.content,
+            createdAt: message.createdAt,
+            senderId: message.senderId,
+            receiverId: message.receiverId,
+            senderUsername: message.senderUsername,
+            receiverUsername: message.receiverUsername,
+            status: message.status,
+            imageUrl: message.imageUrl,
+            imageFilename: message.imageFilename,
+            imageMimeType: message.imageMimeType,
+            imageSize: message.imageSize,
+          };
+          const newMessages = [...prev, newMsg];
           console.log("📊 Total messages after adding:", newMessages.length);
           return newMessages;
         });
@@ -88,7 +122,8 @@ function ChatUserPageContent() {
         });
       }
     },
-    onMessageSent: (message) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onMessageSent: (message: any) => {
       // Add sent message to the conversation - ensure it's for this conversation
       if (
         (message.senderUsername === currentUser?.username && message.receiverUsername === peerUsername) ||
@@ -114,7 +149,21 @@ function ChatUserPageContent() {
             }
             
             console.log("Replacing optimistic message with real message:", message.id);
-            return [...filteredMessages, message];
+            const newMsg: DirectMessage = {
+              id: message.id,
+              content: message.content,
+              createdAt: message.createdAt,
+              senderId: message.senderId,
+              receiverId: message.receiverId,
+              senderUsername: message.senderUsername,
+              receiverUsername: message.receiverUsername,
+              status: message.status,
+              imageUrl: message.imageUrl,
+              imageFilename: message.imageFilename,
+              imageMimeType: message.imageMimeType,
+              imageSize: message.imageSize,
+            };
+            return [...filteredMessages, newMsg];
           } else {
             // This is an optimistic message
             const existingIds = new Set(prev.map((m) => m.id));
@@ -124,10 +173,19 @@ function ChatUserPageContent() {
             }
             
             // Update the optimistic message with current user info if available
-            const updatedMessage = {
-              ...message,
-              senderUsername: currentUser?.username || message.senderUsername,
+            const updatedMessage: DirectMessage = {
+              id: message.id,
+              content: message.content,
+              createdAt: message.createdAt,
               senderId: currentUser?.id || message.senderId,
+              receiverId: message.receiverId,
+              senderUsername: currentUser?.username || message.senderUsername,
+              receiverUsername: message.receiverUsername,
+              status: message.status,
+              imageUrl: message.imageUrl,
+              imageFilename: message.imageFilename,
+              imageMimeType: message.imageMimeType,
+              imageSize: message.imageSize,
             };
             
             console.log("Adding new optimistic message:", message.id);
@@ -205,6 +263,10 @@ function ChatUserPageContent() {
           senderUsername: msg.sender.username,
           receiverUsername: msg.receiver.username,
           status: msg.status || "DELIVERED",
+          imageUrl: msg.imageUrl,
+          imageFilename: msg.imageFilename,
+          imageMimeType: msg.imageMimeType,
+          imageSize: msg.imageSize,
         }));
         setMessages(formattedMessages);
         setLastMessageCheck(new Date());
@@ -242,11 +304,15 @@ function ChatUserPageContent() {
             senderUsername: msg.sender.username,
             receiverUsername: msg.receiver.username,
             status: msg.status || "DELIVERED",
+            imageUrl: msg.imageUrl,
+            imageFilename: msg.imageFilename,
+            imageMimeType: msg.imageMimeType,
+            imageSize: msg.imageSize,
           }));
           
           setMessages((prev) => {
             const existingIds = new Set(prev.map(m => m.id));
-            const newMessages = formattedMessages.filter((msg: Message) => !existingIds.has(msg.id));
+            const newMessages = formattedMessages.filter((msg: DirectMessage) => !existingIds.has(msg.id));
             
             if (newMessages.length > 0) {
               console.log("📥 Adding new messages from polling:", newMessages.length);
@@ -331,14 +397,38 @@ function ChatUserPageContent() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !peerUsername) return;
+    if ((!newMessage.trim() && !pendingImage) || !peerUsername) return;
 
     const messageContent = newMessage.trim();
+    const imageData = pendingImage;
+    
     setNewMessage("");
+    setPendingImage(null);
     setError("");
 
-    // Send via WebSocket or fallback to HTTP
-    sendSocketMessage(messageContent, peerUsername);
+    // Send via enhanced sendMessage function that supports images
+    sendSocketMessage(
+      messageContent || "", 
+      peerUsername,
+      imageData ? {
+        imageUrl: imageData.url,
+        imageFilename: imageData.filename,
+        imageMimeType: imageData.mimeType,
+        imageSize: imageData.size,
+      } : undefined
+    );
+  };
+
+  const handleImageUploaded = (imageData: PendingImage) => {
+    setPendingImage(imageData);
+  };
+
+  const handleUploadError = (error: string) => {
+    setError(error);
+  };
+
+  const handleRemoveImage = () => {
+    setPendingImage(null);
   };
 
   const handleTyping = () => {
@@ -353,11 +443,6 @@ function ChatUserPageContent() {
         stopTyping(peerUsername);
       }, 1000);
     }
-  };
-
-  const formatMessageTime = (createdAt: string) => {
-    const date = new Date(createdAt);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   // Early return after all hooks are called
@@ -485,34 +570,16 @@ function ChatUserPageContent() {
                 </div>
               ) : (
                 messages.map((message) => (
-                  <div
+                  <MessageBubble
                     key={message.id}
-                    className={`flex ${
-                      message.senderUsername === currentUser?.username
-                        ? "justify-end"
-                        : "justify-start"
-                    }`}
-                  >
-                    <div className="max-w-sm">
-                      <div
-                        className={`${
-                          message.senderUsername === currentUser?.username
-                            ? "message-bubble-sent"
-                            : "message-bubble-received"
-                        }`}
-                      >
-                        <div className="text-xs font-medium mb-2 opacity-70 uppercase tracking-wider">
-                          {message.senderUsername}
-                        </div>
-                        <div className="font-light leading-relaxed">
-                          {message.content}
-                        </div>
-                        <div className="text-xs mt-3 opacity-50 uppercase tracking-wider">
-                          {formatMessageTime(message.createdAt)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                    content={message.content}
+                    imageUrl={message.imageUrl}
+                    imageFilename={message.imageFilename}
+                    isOwnMessage={message.senderUsername === currentUser?.username}
+                    timestamp={message.createdAt}
+                    senderUsername={message.senderUsername}
+                    showSender={message.senderUsername !== currentUser?.username}
+                  />
                 ))
               )}
               <div ref={messagesEndRef} />
@@ -527,27 +594,73 @@ function ChatUserPageContent() {
                 </div>
               )}
               
-              <form onSubmit={handleSendMessage} className="flex space-x-4">
-                <textarea
-                  value={newMessage}
-                  onChange={(e) => {
-                    setNewMessage(e.target.value);
-                    handleTyping();
-                  }}
-                  placeholder="Type your message..."
-                  className="flex-1 input-field resize-none font-light"
-                  rows={2}
-                  onKeyPress={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage(e);
-                    }
-                  }}
-                />
+              {/* Pending Image Preview */}
+              {pendingImage && (
+                <div className="mb-4 p-4 bg-zinc-900 border border-zinc-700 rounded-lg">
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0">
+                      <Image
+                        src={pendingImage.url}
+                        alt="Upload preview"
+                        width={80}
+                        height={80}
+                        className="rounded-lg object-cover"
+                        unoptimized
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-zinc-300 font-medium">{pendingImage.filename}</p>
+                      <p className="text-xs text-zinc-500">
+                        {(pendingImage.size / 1024 / 1024).toFixed(1)} MB • {pendingImage.mimeType}
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleRemoveImage}
+                      className="flex-shrink-0 text-zinc-400 hover:text-white"
+                      title="Remove image"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-2">
+                    📎 Image attached and ready to send
+                  </p>
+                </div>
+              )}
+              
+              <form onSubmit={handleSendMessage} className="flex items-end space-x-4">
+                <div className="flex-1">
+                  <textarea
+                    value={newMessage}
+                    onChange={(e) => {
+                      setNewMessage(e.target.value);
+                      handleTyping();
+                    }}
+                    placeholder="Type your message... (supports **bold**, _italic_, `code`)"
+                    className="w-full input-field resize-none font-light"
+                    rows={2}
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage(e);
+                      }
+                    }}
+                  />
+                </div>
+                
+                {/* Image Upload Button */}
+                <div className="flex-shrink-0">
+                  <ImageUpload
+                    onImageUploaded={handleImageUploaded}
+                    onUploadError={handleUploadError}
+                    disabled={false}
+                  />
+                </div>
+                
                 <button
                   type="submit"
-                  disabled={!newMessage.trim()}
-                  className="btn-primary text-sm font-medium uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!newMessage.trim() && !pendingImage}
+                  className="flex-shrink-0 btn-primary text-sm font-medium uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   SEND
                 </button>

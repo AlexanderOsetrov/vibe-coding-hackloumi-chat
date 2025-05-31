@@ -176,6 +176,10 @@ export function initializeSocket(server: HTTPServer) {
       authSocket.on("send_message", async (data: {
         content: string;
         receiverUsername: string;
+        imageUrl?: string;
+        imageFilename?: string;
+        imageMimeType?: string;
+        imageSize?: number;
       }) => {
         try {
           console.log(`📤 Handling send_message from ${authSocket.username}:`, data);
@@ -398,17 +402,29 @@ async function handleLeaveGroup(socket: AuthenticatedSocket, groupId: string) {
 
 async function handleSendDirectMessage(
   socket: AuthenticatedSocket,
-  data: { content: string; receiverUsername: string }
+  data: { 
+    content: string; 
+    receiverUsername: string;
+    imageUrl?: string;
+    imageFilename?: string;
+    imageMimeType?: string;
+    imageSize?: number;
+  }
 ) {
   if (!socket.userId || !socket.username) {
     throw new Error("Unauthorized");
   }
 
-  const { content, receiverUsername } = data;
+  const { content, receiverUsername, imageUrl, imageFilename, imageMimeType, imageSize } = data;
 
-  // Validation
-  if (!content || !receiverUsername || content.trim().length === 0) {
-    socket.emit("message_error", { error: "Invalid message data" });
+  // Validation - either content or image is required
+  if ((!content || content.trim().length === 0) && !imageUrl) {
+    socket.emit("message_error", { error: "Either content or image is required" });
+    return;
+  }
+
+  if (!receiverUsername) {
+    socket.emit("message_error", { error: "Receiver username is required" });
     return;
   }
 
@@ -430,10 +446,14 @@ async function handleSendDirectMessage(
     // Create message in database
     const message = await prisma.message.create({
       data: {
-        content: content.trim(),
+        content: content ? content.trim() : "",
         senderId: socket.userId,
         receiverId: receiver.id,
         status: "SENT",
+        imageUrl,
+        imageFilename,
+        imageMimeType,
+        imageSize,
       },
       include: {
         sender: { select: { id: true, username: true } },
@@ -451,13 +471,18 @@ async function handleSendDirectMessage(
       createdAt: message.createdAt.toISOString(),
       status: message.status,
       type: "direct",
+      imageUrl: message.imageUrl,
+      imageFilename: message.imageFilename,
+      imageMimeType: message.imageMimeType,
+      imageSize: message.imageSize,
     };
 
     console.log(`💾 Direct message saved to database:`, {
       id: message.id,
       from: messageData.senderUsername,
       to: messageData.receiverUsername,
-      content: messageData.content.substring(0, 50) + "..."
+      content: messageData.content ? messageData.content.substring(0, 50) + "..." : "[Image]",
+      hasImage: !!messageData.imageUrl
     });
 
     // Send confirmation to sender

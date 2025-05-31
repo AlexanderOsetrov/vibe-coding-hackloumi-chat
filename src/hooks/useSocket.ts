@@ -32,7 +32,16 @@ interface UseSocketOptions {
 
 interface UseSocketReturn {
   isConnected: boolean;
-  sendMessage: (content: string, receiverUsername: string) => void;
+  sendMessage: (
+    content: string, 
+    receiverUsername: string,
+    imageData?: {
+      imageUrl?: string;
+      imageFilename?: string;
+      imageMimeType?: string;
+      imageSize?: number;
+    }
+  ) => void;
   sendGroupMessage?: (data: { 
     content: string; 
     groupId: string;
@@ -391,7 +400,12 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
   }, [startPollingFallback]);
 
   // Send message function with improved error handling
-  const sendMessage = useCallback((content: string, receiverUsername: string) => {
+  const sendMessage = useCallback((content: string, receiverUsername: string, imageData?: {
+    imageUrl?: string;
+    imageFilename?: string;
+    imageMimeType?: string;
+    imageSize?: number;
+  }) => {
     // Create optimistic message for immediate UI update
     const optimisticMessage: Message = {
       id: `temp-${Date.now()}-${Math.random()}`,
@@ -402,6 +416,10 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
       senderUsername: "current-user",
       receiverUsername,
       status: "SENDING",
+      imageUrl: imageData?.imageUrl,
+      imageFilename: imageData?.imageFilename,
+      imageMimeType: imageData?.imageMimeType,
+      imageSize: imageData?.imageSize,
     };
 
     // Immediately show the message in the UI
@@ -415,7 +433,14 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
         const response = await fetch("/api/messages", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content, receiverUsername }),
+          body: JSON.stringify({ 
+            content, 
+            receiverUsername,
+            imageUrl: imageData?.imageUrl,
+            imageFilename: imageData?.imageFilename,
+            imageMimeType: imageData?.imageMimeType,
+            imageSize: imageData?.imageSize,
+          }),
         });
         
         const data = await response.json();
@@ -439,8 +464,15 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
 
     if (socketRef.current?.connected && isConnected) {
       // Send via WebSocket
-      console.log("Sending message via WebSocket:", { content, receiverUsername });
-      socketRef.current.emit("send_message", { content, receiverUsername });
+      console.log("Sending message via WebSocket:", { content, receiverUsername, ...imageData });
+      socketRef.current.emit("send_message", { 
+        content, 
+        receiverUsername,
+        imageUrl: imageData?.imageUrl,
+        imageFilename: imageData?.imageFilename,
+        imageMimeType: imageData?.imageMimeType,
+        imageSize: imageData?.imageSize,
+      });
       
       // Fallback to HTTP if no confirmation in reasonable time
       const fallbackTimeout = setTimeout(() => {

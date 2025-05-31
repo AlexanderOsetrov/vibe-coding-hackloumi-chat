@@ -14,11 +14,14 @@ interface MessageData {
   id: string;
   content: string;
   senderId: string;
-  receiverId: string;
+  receiverId?: string;
+  groupId?: string;
   senderUsername: string;
-  receiverUsername: string;
+  receiverUsername?: string;
+  groupName?: string;
   createdAt: string;
   status: string;
+  type: "direct" | "group";
 }
 
 // In-memory store for connected users
@@ -109,7 +112,7 @@ export function initializeSocket(server: HTTPServer) {
     }
   });
 
-  io.on("connection", (socket: Socket) => {
+  io.on("connection", async (socket: Socket) => {
     const authSocket = socket as AuthenticatedSocket;
     console.log(`🔗 User ${authSocket.username} connected with socket ${authSocket.id}`);
 
@@ -124,6 +127,9 @@ export function initializeSocket(server: HTTPServer) {
       // Join user to their personal room for direct messaging
       authSocket.join(`user:${authSocket.userId}`);
       console.log(`🏠 User ${authSocket.username} joined room: user:${authSocket.userId}`);
+
+      // Join user to all their group rooms
+      await joinUserGroups(authSocket);
 
       // Broadcast to all connected users that this user is now online
       authSocket.broadcast.emit("user_online", {
@@ -162,17 +168,49 @@ export function initializeSocket(server: HTTPServer) {
         }).catch(console.error);
       });
 
-      // Handle message sending
+      // Handle direct message sending
       authSocket.on("send_message", async (data: {
         content: string;
         receiverUsername: string;
       }) => {
         try {
           console.log(`📤 Handling send_message from ${authSocket.username}:`, data);
-          await handleSendMessage(authSocket, data);
+          await handleSendDirectMessage(authSocket, data);
         } catch (error) {
           console.error("Send message error:", error);
           authSocket.emit("message_error", { error: "Failed to send message" });
+        }
+      });
+
+      // Handle group message sending
+      authSocket.on("send_group_message", async (data: {
+        content: string;
+        groupId: string;
+      }) => {
+        try {
+          console.log(`📤 Handling send_group_message from ${authSocket.username}:`, data);
+          await handleSendGroupMessage(authSocket, data);
+        } catch (error) {
+          console.error("Send group message error:", error);
+          authSocket.emit("message_error", { error: "Failed to send group message" });
+        }
+      });
+
+      // Handle joining a group (when user is added to a group)
+      authSocket.on("join_group", async (data: { groupId: string }) => {
+        try {
+          await handleJoinGroup(authSocket, data.groupId);
+        } catch (error) {
+          console.error("Join group error:", error);
+        }
+      });
+
+      // Handle leaving a group
+      authSocket.on("leave_group", async (data: { groupId: string }) => {
+        try {
+          await handleLeaveGroup(authSocket, data.groupId);
+        } catch (error) {
+          console.error("Leave group error:", error);
         }
       });
 
@@ -186,7 +224,7 @@ export function initializeSocket(server: HTTPServer) {
         }
       });
 
-      // Handle typing indicators
+      // Handle typing indicators for direct messages
       authSocket.on("typing_start", (data: { receiverUsername: string }) => {
         console.log(`${authSocket.username} started typing to ${data.receiverUsername}`);
         handleTypingIndicator(authSocket, data.receiverUsername, true);
@@ -195,6 +233,15 @@ export function initializeSocket(server: HTTPServer) {
       authSocket.on("typing_stop", (data: { receiverUsername: string }) => {
         console.log(`${authSocket.username} stopped typing to ${data.receiverUsername}`);
         handleTypingIndicator(authSocket, data.receiverUsername, false);
+      });
+
+      // Handle typing indicators for group messages
+      authSocket.on("group_typing_start", (data: { groupId: string }) => {
+        handleGroupTypingIndicator(authSocket, data.groupId, true);
+      });
+
+      authSocket.on("group_typing_stop", (data: { groupId: string }) => {
+        handleGroupTypingIndicator(authSocket, data.groupId, false);
       });
 
       authSocket.on("disconnect", (reason) => {
@@ -263,7 +310,85 @@ export function initializeSocket(server: HTTPServer) {
   return io;
 }
 
-async function handleSendMessage(
+// Join user to all their groups
+async function joinUserGroups(socket: AuthenticatedSocket) {
+  if (!socket.userId) return;
+
+  try {
+    const userGroups = await prisma.groupMember.findMany({
+      where: { userId: socket.userId },
+      include: {
+        group: {
+          select: { id: true, name: true }
+        }
+      }
+    });
+
+    for (const membership of userGroups) {
+      const groupRoom = `group:${membership.group.id}`;
+      socket.join(groupRoom);
+      console.log(`🏠 User ${socket.username} joined group room: ${groupRoom} (${membership.group.name})`);
+    }
+  } catch (error) {
+    console.error("Error joining user groups:", error);
+  }
+}
+
+// Handle joining a specific group
+async function handleJoinGroup(socket: AuthenticatedSocket, groupId: string) {
+  if (!socket.userId) return;
+
+  try {
+    // Verify user is a member of the group
+    const membership = await prisma.groupMember.findUnique({
+      where: {
+        userId_groupId: {
+          userId: socket.userId,
+          groupId
+        }
+      },
+      include: {
+        group: {
+          select: { id: true, name: true }
+        }
+      }
+    });
+
+    if (membership) {
+      const groupRoom = `group:${groupId}`;
+      socket.join(groupRoom);
+      console.log(`🏠 User ${socket.username} joined group room: ${groupRoom} (${membership.group.name})`);
+      
+      // Notify group members that user is online
+      socket.to(groupRoom).emit("group_user_online", {
+        userId: socket.userId,
+        username: socket.username,
+        groupId
+      });
+    }
+  } catch (error) {
+    console.error("Error handling join group:", error);
+  }
+}
+
+// Handle leaving a specific group
+async function handleLeaveGroup(socket: AuthenticatedSocket, groupId: string) {
+  if (!socket.userId) return;
+
+  const groupRoom = `group:${groupId}`;
+  
+  // Notify group members that user is leaving
+  socket.to(groupRoom).emit("group_user_offline", {
+    userId: socket.userId,
+    username: socket.username,
+    groupId
+  });
+  
+  socket.leave(groupRoom);
+  console.log(`🚪 User ${socket.username} left group room: ${groupRoom}`);
+}
+
+async function handleSendDirectMessage(
   socket: AuthenticatedSocket,
   data: { content: string; receiverUsername: string }
 ) {
@@ -292,7 +417,7 @@ async function handleSendMessage(
       return;
     }
 
-    console.log(`📝 Creating message from ${socket.username} to ${receiver.username}`);
+    console.log(`📝 Creating direct message from ${socket.username} to ${receiver.username}`);
 
     // Create message in database
     const message = await prisma.message.create({
@@ -312,14 +437,15 @@ async function handleSendMessage(
       id: message.id,
       content: message.content,
       senderId: message.senderId,
-      receiverId: message.receiverId,
+      receiverId: message.receiverId || undefined,
       senderUsername: message.sender.username,
-      receiverUsername: message.receiver.username,
+      receiverUsername: message.receiver?.username,
       createdAt: message.createdAt.toISOString(),
       status: message.status,
+      type: "direct",
     };
 
-    console.log(`💾 Message saved to database:`, {
+    console.log(`💾 Direct message saved to database:`, {
       id: message.id,
       from: messageData.senderUsername,
       to: messageData.receiverUsername,
@@ -333,7 +459,6 @@ async function handleSendMessage(
     // Try to deliver to receiver immediately
     const receiverSocketId = connectedUsers.get(receiver.id);
     console.log(`🔍 Looking for receiver ${receiver.username} (${receiver.id})`);
-    console.log(`🗺️ Connected users map:`, Array.from(connectedUsers.entries()));
     
     if (receiverSocketId) {
       console.log(`🎯 Found receiver socket ID: ${receiverSocketId}`);
@@ -359,7 +484,6 @@ async function handleSendMessage(
         console.log(`📬 Delivery notification sent to sender`);
       } else {
         console.log(`❌ Receiver socket not found in userSockets map`);
-        console.log(`🗺️ UserSockets map:`, Array.from(userSockets.keys()));
         // Queue message for offline user
         queueMessage(receiver.id, messageData);
         console.log(`📥 Message queued for offline user: ${receiver.username}`);
@@ -371,8 +495,110 @@ async function handleSendMessage(
       console.log(`📥 Message queued for offline user: ${receiver.username}`);
     }
   } catch (error) {
-    console.error("❌ Database error in handleSendMessage:", error);
+    console.error("❌ Database error in handleSendDirectMessage:", error);
     socket.emit("message_error", { error: "Failed to save message" });
+  }
+}
+
+async function handleSendGroupMessage(
+  socket: AuthenticatedSocket,
+  data: { content: string; groupId: string }
+) {
+  if (!socket.userId || !socket.username) {
+    throw new Error("Unauthorized");
+  }
+
+  const { content, groupId } = data;
+
+  // Validation
+  if (!content || !groupId || content.trim().length === 0) {
+    socket.emit("message_error", { error: "Invalid group message data" });
+    return;
+  }
+
+  try {
+    // Verify user is a member of the group
+    const membership = await prisma.groupMember.findUnique({
+      where: {
+        userId_groupId: {
+          userId: socket.userId,
+          groupId
+        }
+      },
+      include: {
+        group: {
+          select: { id: true, name: true }
+        }
+      }
+    });
+
+    if (!membership) {
+      socket.emit("message_error", { error: "You are not a member of this group" });
+      return;
+    }
+
+    console.log(`📝 Creating group message from ${socket.username} to group ${membership.group.name}`);
+
+    // Create message in database
+    const message = await prisma.message.create({
+      data: {
+        content: content.trim(),
+        senderId: socket.userId,
+        groupId,
+        status: "SENT",
+      },
+      include: {
+        sender: { select: { id: true, username: true } },
+        group: { select: { id: true, name: true } },
+      },
+    });
+
+    const messageData: MessageData = {
+      id: message.id,
+      content: message.content,
+      senderId: message.senderId,
+      groupId: message.groupId || undefined,
+      senderUsername: message.sender.username,
+      groupName: message.group?.name,
+      createdAt: message.createdAt.toISOString(),
+      status: message.status,
+      type: "group",
+    };
+
+    console.log(`💾 Group message saved to database:`, {
+      id: message.id,
+      from: messageData.senderUsername,
+      group: messageData.groupName,
+      content: messageData.content.substring(0, 50) + "..."
+    });
+
+    // Send confirmation to sender
+    socket.emit("message_sent", messageData);
+
+    // Broadcast to all group members (including sender for consistency)
+    const groupRoom = `group:${groupId}`;
+    console.log(`📨 Broadcasting group message to room: ${groupRoom}`);
+    
+    // Emit to all group members
+    io?.to(groupRoom).emit("new_message", messageData);
+
+    // Mark as delivered immediately for group messages (fan-out delivery)
+    await prisma.message.update({
+      where: { id: message.id },
+      data: {
+        status: "DELIVERED",
+        deliveredAt: new Date(),
+      },
+    });
+
+    console.log(`✅ Group message marked as delivered`);
+    
+    // Notify sender of delivery
+    socket.emit("message_delivered", { messageId: message.id });
+
+  } catch (error) {
+    console.error("❌ Database error in handleSendGroupMessage:", error);
+    socket.emit("message_error", { error: "Failed to save group message" });
   }
 }
 
@@ -432,6 +658,22 @@ function handleTypingIndicator(
   });
 }
 
+function handleGroupTypingIndicator(
+  socket: AuthenticatedSocket,
+  groupId: string,
+  isTyping: boolean
+) {
+  if (!socket.userId || !socket.username) return;
+
+  // Emit typing indicator to all group members except sender
+  const groupRoom = `group:${groupId}`;
+  socket.to(groupRoom).emit("group_typing_indicator", {
+    username: socket.username,
+    groupId,
+    isTyping,
+  });
+}
+
 function queueMessage(userId: string, message: MessageData) {
   if (!messageQueue.has(userId)) {
     messageQueue.set(userId, []);
@@ -451,7 +693,8 @@ async function deliverQueuedMessages(userId: string) {
   const socket = userSockets.get(socketId);
   if (!socket) return;
 
-  // Deliver all queued messages
+  console.log(`📬 Delivering ${queuedMessages.length} queued messages to ${socket.username}`);
+
   for (const message of queuedMessages) {
     socket.emit("new_message", message);
     

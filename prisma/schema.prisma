@@ -36,6 +36,12 @@ model User {
   // Contact invitations received by this user
   receivedInvitations ContactInvitation[] @relation("InvitationReceiver")
 
+  // Groups owned by this user
+  ownedGroups Group[] @relation("GroupOwner")
+  
+  // Group memberships for this user
+  groupMemberships GroupMember[]
+
   @@map("users")
 }
 
@@ -51,13 +57,18 @@ model Message {
   senderId String
   sender   User   @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
 
-  // Receiver of the message
-  receiverId String
-  receiver   User   @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  // Receiver of the message (for direct messages)
+  receiverId String?
+  receiver   User?   @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  // Group message (for group chats)
+  groupId String?
+  group   Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@map("messages")
   @@index([senderId, receiverId, createdAt])
   @@index([receiverId, senderId, createdAt])
+  @@index([groupId, createdAt])
   @@index([fts], map: "messages_fts_idx", type: Gin)
   @@index([status])
 }
@@ -100,6 +111,44 @@ model ContactInvitation {
   @@map("contact_invitations")
   @@index([receiverId, status])
   @@index([senderId, status])
+}
+
+model Group {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // The user who owns this group
+  ownerId String
+  owner   User   @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Members of this group
+  members GroupMember[]
+  
+  // Messages in this group
+  messages Message[]
+
+  @@map("groups")
+  @@index([ownerId])
+}
+
+model GroupMember {
+  id        String   @id @default(cuid())
+  joinedAt  DateTime @default(now())
+
+  // The user who is a member
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The group they are a member of
+  groupId String
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+  @@map("group_members")
+  @@index([groupId])
+  @@index([userId])
 }
 
 enum ContactInvitationStatus {

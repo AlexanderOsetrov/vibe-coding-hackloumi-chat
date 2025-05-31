@@ -258,12 +258,12 @@ Each milestone is released as its own pull request and Git tag. Tick the boxes t
 - [x] Delivery **ACK** updates message status to _delivered_
 - [x] Fallback to polling when WebSocket unsupported
 
-### M5 – Group Chats 👥
+### M5 – Group Chats 👥 ✅
 
-- [ ] `groups` table (`id`, `name`, `owner_id`)
-- [ ] Endpoints to create, rename, and delete rooms
-- [ ] Add / remove participants with owner approval
-- [ ] Broadcast fan‑out to all members over WebSocket
+- [x] `groups` table (`id`, `name`, `owner_id`)
+- [x] Endpoints to create, rename, and delete rooms
+- [x] Add / remove participants with owner approval
+- [x] Broadcast fan‑out to all members over WebSocket
 
 ### M6 – Images & Formatting 🖼️
 

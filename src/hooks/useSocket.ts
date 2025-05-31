@@ -6,10 +6,13 @@ interface Message {
   content: string;
   createdAt: string;
   senderId: string;
-  receiverId: string;
+  receiverId?: string;
+  groupId?: string;
   senderUsername: string;
-  receiverUsername: string;
+  receiverUsername?: string;
+  groupName?: string;
   status: string;
+  type?: "direct" | "group";
 }
 
 interface UseSocketOptions {
@@ -17,6 +20,7 @@ interface UseSocketOptions {
   onMessageSent?: (message: Message) => void;
   onMessageDelivered?: (messageId: string) => void;
   onTypingIndicator?: (data: { username: string; isTyping: boolean }) => void;
+  onGroupTypingIndicator?: (data: { username: string; groupId: string; isTyping: boolean }) => void;
   onUserOnline?: (data: { userId: string; username: string }) => void;
   onUserOffline?: (data: { userId: string; username: string }) => void;
   onError?: (error: string) => void;
@@ -25,8 +29,11 @@ interface UseSocketOptions {
 interface UseSocketReturn {
   isConnected: boolean;
   sendMessage: (content: string, receiverUsername: string) => void;
+  sendGroupMessage?: (data: { content: string; groupId: string }) => void;
   startTyping: (receiverUsername: string) => void;
   stopTyping: (receiverUsername: string) => void;
+  startGroupTyping?: (data: { groupId: string }) => void;
+  stopGroupTyping?: (data: { groupId: string }) => void;
   checkUserOnline: (username: string) => void;
   connectionType: "websocket" | "polling" | "disconnected";
 }
@@ -267,12 +274,27 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
           if (!isMountedRef.current) return;
           console.log("🔥 RECEIVED NEW MESSAGE VIA SOCKET:", message);
           console.log("Socket ID:", socket.id);
-          console.log("Message details:", {
-            id: message.id,
-            from: message.senderUsername,
-            to: message.receiverUsername,
-            content: message.content
-          });
+          
+          // Log different details based on message type
+          if (message.type === "group") {
+            console.log("📱 Group message details:", {
+              id: message.id,
+              from: message.senderUsername,
+              group: message.groupName,
+              groupId: message.groupId,
+              content: message.content,
+              type: message.type
+            });
+          } else {
+            console.log("💬 Direct message details:", {
+              id: message.id,
+              from: message.senderUsername,
+              to: message.receiverUsername,
+              content: message.content,
+              type: message.type || 'direct'
+            });
+          }
+          
           memoizedCallbacks.current.onNewMessage?.(message);
           // Send delivery acknowledgment
           console.log("Sending delivery ACK for message:", message.id);
@@ -301,6 +323,13 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
           if (!isMountedRef.current) return;
           console.error("❌ MESSAGE ERROR:", data.error);
           memoizedCallbacks.current.onError?.(data.error);
+        });
+
+        // Group message event listeners
+        socket.on("group_typing_indicator", (data: { username: string; groupId: string; isTyping: boolean }) => {
+          if (!isMountedRef.current) return;
+          console.log("⌨️ GROUP TYPING INDICATOR:", data);
+          memoizedCallbacks.current.onGroupTypingIndicator?.(data);
         });
 
         // Online/offline status listeners
@@ -440,6 +469,90 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
     }
   }, [isConnected]);
 
+  // Group messaging functions
+  const sendGroupMessage = useCallback((data: { content: string; groupId: string }) => {
+    // Create optimistic message for immediate UI update
+    const optimisticMessage: Message = {
+      id: `temp-${Date.now()}-${Math.random()}`,
+      content: data.content,
+      createdAt: new Date().toISOString(),
+      senderId: "current-user",
+      groupId: data.groupId,
+      senderUsername: "current-user",
+      status: "SENDING",
+      type: "group",
+    };
+
+    // Immediately show the message in the UI
+    if (isMountedRef.current) {
+      console.log("Adding optimistic group message to UI:", optimisticMessage);
+      memoizedCallbacks.current.onMessageSent?.(optimisticMessage);
+    }
+
+    const sendViaHTTP = async () => {
+      try {
+        const response = await fetch(`/api/groups/${data.groupId}/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: data.content }),
+        });
+        
+        const responseData = await response.json();
+        
+        if (responseData.data && isMountedRef.current) {
+          console.log("HTTP group message sent successfully:", responseData.data);
+          memoizedCallbacks.current.onMessageSent?.(responseData.data);
+        } else if (responseData.error) {
+          console.error("HTTP group message error:", responseData.error);
+          if (isMountedRef.current) {
+            memoizedCallbacks.current.onError?.(responseData.error);
+          }
+        }
+      } catch (error) {
+        console.error("Send group message error:", error);
+        if (isMountedRef.current) {
+          memoizedCallbacks.current.onError?.("Failed to send group message");
+        }
+      }
+    };
+
+    if (socketRef.current?.connected && isConnected) {
+      // Send via WebSocket
+      console.log("Sending group message via WebSocket:", data);
+      socketRef.current.emit("send_group_message", data);
+      
+      // Fallback to HTTP if no confirmation in reasonable time
+      const fallbackTimeout = setTimeout(() => {
+        if (isMountedRef.current) {
+          console.log("WebSocket timeout, trying HTTP fallback for group message");
+          sendViaHTTP();
+        }
+      }, 5000);
+
+      // Clear timeout if we get a response
+      const cleanup = () => clearTimeout(fallbackTimeout);
+      socketRef.current.once("message_sent", cleanup);
+      socketRef.current.once("message_error", cleanup);
+    } else {
+      // Use HTTP immediately if no socket connection
+      console.log("No WebSocket connection, using HTTP for group message");
+      sendViaHTTP();
+    }
+  }, [isConnected]);
+
+  // Group typing indicators
+  const startGroupTyping = useCallback((data: { groupId: string }) => {
+    if (socketRef.current?.connected && isConnected) {
+      socketRef.current.emit("group_typing_start", data);
+    }
+  }, [isConnected]);
+
+  const stopGroupTyping = useCallback((data: { groupId: string }) => {
+    if (socketRef.current?.connected && isConnected) {
+      socketRef.current.emit("group_typing_stop", data);
+    }
+  }, [isConnected]);
+
   // Initialize on mount and cleanup on unmount
   useEffect(() => {
     isMountedRef.current = true;
@@ -456,8 +569,11 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
   return {
     isConnected,
     sendMessage,
+    sendGroupMessage,
     startTyping,
     stopTyping,
+    startGroupTyping,
+    stopGroupTyping,
     checkUserOnline,
     connectionType,
   };

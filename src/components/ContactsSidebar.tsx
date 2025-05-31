@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import SearchBar from "./SearchBar";
+import GroupsSection from "./GroupsSection";
 
 interface Contact {
   id: string;
@@ -36,11 +37,13 @@ interface ContactsSidebarProps {
     username: string;
   } | null;
   activeContactUsername?: string;
+  activeGroupId?: string;
 }
 
 export default function ContactsSidebar({
   currentUser,
   activeContactUsername,
+  activeGroupId,
 }: ContactsSidebarProps) {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [receivedInvitations, setReceivedInvitations] = useState<Invitation[]>(
@@ -53,6 +56,7 @@ export default function ContactsSidebar({
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [onlineStatus, setOnlineStatus] = useState<Record<string, boolean>>({});
+  const [activeTab, setActiveTab] = useState<"contacts" | "groups">("contacts");
   const router = useRouter();
 
   const loadData = async () => {
@@ -201,6 +205,11 @@ export default function ContactsSidebar({
     router.push(`/chat/${username}`);
   };
 
+  const clearMessages = () => {
+    setError("");
+    setSuccessMessage("");
+  };
+
   if (isLoading) {
     return (
       <div className="w-80 sidebar p-6">
@@ -222,33 +231,67 @@ export default function ContactsSidebar({
             className="object-contain"
           />
           <h1 className="text-lg font-light text-white tracking-wide">
-            CONTACTS
+            HACKLOUMI CHAT
           </h1>
         </div>
 
-        {/* Search Bar */}
-        <div className="mb-6">
-          <SearchBar currentUser={currentUser} />
+        {/* Tab Navigation */}
+        <div className="flex border border-zinc-800 rounded mb-6">
+          <button
+            onClick={() => {
+              setActiveTab("contacts");
+              clearMessages();
+            }}
+            className={`flex-1 py-2 px-3 text-sm font-medium transition-colors ${
+              activeTab === "contacts"
+                ? "bg-white text-black"
+                : "bg-transparent text-zinc-400 hover:text-white"
+            }`}
+          >
+            CONTACTS
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab("groups");
+              clearMessages();
+            }}
+            className={`flex-1 py-2 px-3 text-sm font-medium transition-colors ${
+              activeTab === "groups"
+                ? "bg-white text-black"
+                : "bg-transparent text-zinc-400 hover:text-white"
+            }`}
+          >
+            GROUPS
+          </button>
         </div>
 
-        {/* Add Contact Form */}
-        <form onSubmit={sendInvitation} className="space-y-3">
-          <input
-            type="text"
-            value={newContactUsername}
-            onChange={(e) => setNewContactUsername(e.target.value)}
-            placeholder="Enter username..."
-            className="input-field w-full text-sm"
-            disabled={isSendingInvite}
-          />
-          <button
-            type="submit"
-            disabled={isSendingInvite || !newContactUsername.trim()}
-            className="btn-primary w-full text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSendingInvite ? "SENDING..." : "SEND INVITATION"}
-          </button>
-        </form>
+        {/* Search Bar (only for contacts) */}
+        {activeTab === "contacts" && (
+          <div className="mb-6">
+            <SearchBar currentUser={currentUser} />
+          </div>
+        )}
+
+        {/* Add Contact Form (only for contacts) */}
+        {activeTab === "contacts" && (
+          <form onSubmit={sendInvitation} className="space-y-3">
+            <input
+              type="text"
+              value={newContactUsername}
+              onChange={(e) => setNewContactUsername(e.target.value)}
+              placeholder="Enter username..."
+              className="input-field w-full text-sm"
+              disabled={isSendingInvite}
+            />
+            <button
+              type="submit"
+              disabled={isSendingInvite || !newContactUsername.trim()}
+              className="btn-primary w-full text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSendingInvite ? "SENDING..." : "SEND INVITATION"}
+            </button>
+          </form>
+        )}
 
         {/* Status Messages */}
         {error && (
@@ -263,115 +306,128 @@ export default function ContactsSidebar({
         )}
       </div>
 
+      {/* Content Area */}
       <div className="flex-1 overflow-y-auto">
-        {/* Contacts List */}
-        <div className="p-6">
-          <h2 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-4">
-            MY CONTACTS ({contacts.length})
-          </h2>
-          {contacts.length === 0 ? (
-            <div className="text-sm text-zinc-500 font-light">
-              No contacts yet. Send an invitation to get started.
-            </div>
-          ) : (
-            <div className="space-y-0">
-              {contacts.map((contact) => (
-                <div
-                  key={contact.id}
-                  className={`contact-item group ${
-                    activeContactUsername === contact.user.username
-                      ? "active"
-                      : ""
-                  }`}
-                  onClick={() => startChat(contact.user.username)}
-                >
-                  <div className="flex-1 flex items-center space-x-3">
-                    {/* Online Status Indicator */}
-                    <div className={`w-2 h-2 rounded-full ${
-                      onlineStatus[contact.user.username] ? "bg-green-500" : "bg-zinc-600"
-                    }`}></div>
-                    <div className="text-sm font-light text-white">
-                      {contact.user.username}
-                    </div>
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeContact(contact.id);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-white text-xs p-1 transition-all duration-200"
-                    title="Remove contact"
-                  >
-                    ✕
-                  </button>
+        {activeTab === "contacts" ? (
+          <>
+            {/* Contacts List */}
+            <div className="p-6">
+              <h2 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-4">
+                MY CONTACTS ({contacts.length})
+              </h2>
+              {contacts.length === 0 ? (
+                <div className="text-sm text-zinc-500 font-light">
+                  No contacts yet. Send an invitation to get started.
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Sent Invitations */}
-        {sentInvitations.length > 0 && (
-          <div className="px-6 pb-6">
-            <h2 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-4">
-              SENT INVITATIONS ({sentInvitations.length})
-            </h2>
-            <div className="space-y-2">
-              {sentInvitations.map((invitation) => (
-                <div key={invitation.id} className="invitation-card">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-light text-white">
-                        {invitation.receiver?.username || "Unknown User"}
-                      </div>
-                      <div className="text-xs text-zinc-500 uppercase tracking-wider">
-                        pending
-                      </div>
-                    </div>
-                    <div className="text-xs text-zinc-600">
-                      {new Date(invitation.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Received Invitations */}
-        {receivedInvitations.length > 0 && (
-          <div className="px-6 pb-6">
-            <h2 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-4">
-              RECEIVED INVITATIONS ({receivedInvitations.length})
-            </h2>
-            <div className="space-y-2">
-              {receivedInvitations.map((invitation) => (
-                <div key={invitation.id} className="invitation-card">
-                  <div className="mb-3">
-                    <div className="text-sm font-light text-white">
-                      {invitation.sender?.username || "Unknown User"}
-                    </div>
-                    <div className="text-xs text-zinc-600">
-                      {new Date(invitation.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleInvitation(invitation.id, "accept")}
-                      className="btn-primary text-xs flex-1"
+              ) : (
+                <div className="space-y-0">
+                  {contacts.map((contact) => (
+                    <div
+                      key={contact.id}
+                      className={`contact-item group ${
+                        activeContactUsername === contact.user.username
+                          ? "active"
+                          : ""
+                      }`}
+                      onClick={() => startChat(contact.user.username)}
                     >
-                      ACCEPT
-                    </button>
-                    <button
-                      onClick={() => handleInvitation(invitation.id, "reject")}
-                      className="btn-ghost text-xs flex-1"
-                    >
-                      DECLINE
-                    </button>
-                  </div>
+                      <div className="flex-1 flex items-center space-x-3">
+                        {/* Online Status Indicator */}
+                        <div className={`w-2 h-2 rounded-full ${
+                          onlineStatus[contact.user.username] ? "bg-green-500" : "bg-zinc-600"
+                        }`}></div>
+                        <div className="text-sm font-light text-white">
+                          {contact.user.username}
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeContact(contact.id);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-white text-xs p-1 transition-all duration-200"
+                        title="Remove contact"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
+
+            {/* Sent Invitations */}
+            {sentInvitations.length > 0 && (
+              <div className="px-6 pb-6">
+                <h2 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-4">
+                  SENT INVITATIONS ({sentInvitations.length})
+                </h2>
+                <div className="space-y-2">
+                  {sentInvitations.map((invitation) => (
+                    <div key={invitation.id} className="invitation-card">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-light text-white">
+                            {invitation.receiver?.username || "Unknown User"}
+                          </div>
+                          <div className="text-xs text-zinc-500 uppercase tracking-wider">
+                            pending
+                          </div>
+                        </div>
+                        <div className="text-xs text-zinc-600">
+                          {new Date(invitation.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Received Invitations */}
+            {receivedInvitations.length > 0 && (
+              <div className="px-6 pb-6">
+                <h2 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-4">
+                  RECEIVED INVITATIONS ({receivedInvitations.length})
+                </h2>
+                <div className="space-y-2">
+                  {receivedInvitations.map((invitation) => (
+                    <div key={invitation.id} className="invitation-card">
+                      <div className="mb-3">
+                        <div className="text-sm font-light text-white">
+                          {invitation.sender?.username || "Unknown User"}
+                        </div>
+                        <div className="text-xs text-zinc-600">
+                          {new Date(invitation.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleInvitation(invitation.id, "accept")}
+                          className="btn-primary text-xs flex-1"
+                        >
+                          ACCEPT
+                        </button>
+                        <button
+                          onClick={() => handleInvitation(invitation.id, "reject")}
+                          className="btn-ghost text-xs flex-1"
+                        >
+                          DECLINE
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          /* Groups Section */
+          <div className="p-6">
+            <GroupsSection 
+              currentUser={currentUser} 
+              activeGroupId={activeGroupId}
+            />
           </div>
         )}
       </div>

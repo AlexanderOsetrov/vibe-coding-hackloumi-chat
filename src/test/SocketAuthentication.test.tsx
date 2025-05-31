@@ -16,9 +16,41 @@ vi.mock("@/lib/auth", () => ({
   verifyJWT: vi.fn(),
 }));
 
+// Mock socket.io-client with factory
+vi.mock("socket.io-client", () => {
+  const mockSocket = {
+    connected: false,
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    on: vi.fn(),
+    off: vi.fn(),
+    emit: vi.fn(),
+    id: "mock-socket-id",
+    io: {
+      engine: {
+        transport: { name: "websocket" }
+      }
+    },
+    removeAllListeners: vi.fn(),
+    once: vi.fn(),
+  };
+
+  const mockIo = vi.fn(() => mockSocket);
+  
+  return {
+    default: mockIo,
+    io: mockIo,
+  };
+});
+
+// Mock fetch for authentication
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
+
 describe("Socket.IO Authentication Logic", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFetch.mockClear();
   });
 
   afterEach(() => {
@@ -51,15 +83,20 @@ describe("Socket.IO Authentication Logic", () => {
     const { prisma } = await import("@/lib/db");
     
     // Mock valid JWT verification
-    (verifyJWT as any).mockResolvedValue({
+    const mockVerifyJWT = vi.mocked(verifyJWT);
+    mockVerifyJWT.mockResolvedValue({
       userId: "user123",
       username: "testuser",
     });
 
     // Mock user found in database
-    (prisma.user.findUnique as any).mockResolvedValue({
+    const mockFindUnique = vi.mocked(prisma.user.findUnique);
+    mockFindUnique.mockResolvedValue({
       id: "user123",
       username: "testuser",
+      password: "hashed-password",
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     // Simulate the authentication logic
@@ -80,7 +117,7 @@ describe("Socket.IO Authentication Logic", () => {
       select: { id: true, username: true },
     });
 
-    expect(user).toEqual({
+    expect(user).toMatchObject({
       id: "user123",
       username: "testuser",
     });
@@ -88,7 +125,8 @@ describe("Socket.IO Authentication Logic", () => {
 
   it("should handle invalid JWT token", async () => {
     // Mock invalid JWT verification
-    (verifyJWT as any).mockResolvedValue(null);
+    const mockVerifyJWT = vi.mocked(verifyJWT);
+    mockVerifyJWT.mockResolvedValue(null);
 
     const cookieHeader = "auth-token=invalid-jwt-token";
     const cookies = parse(cookieHeader);
@@ -100,7 +138,8 @@ describe("Socket.IO Authentication Logic", () => {
 
   it("should handle JWT verification error", async () => {
     // Mock JWT verification throwing an error
-    (verifyJWT as any).mockRejectedValue(new Error("JWT verification failed"));
+    const mockVerifyJWT = vi.mocked(verifyJWT);
+    mockVerifyJWT.mockRejectedValue(new Error("JWT verification failed"));
 
     const cookieHeader = "auth-token=malformed-token";
     const cookies = parse(cookieHeader);
@@ -113,13 +152,15 @@ describe("Socket.IO Authentication Logic", () => {
     const { prisma } = await import("@/lib/db");
     
     // Mock valid JWT verification
-    (verifyJWT as any).mockResolvedValue({
+    const mockVerifyJWT = vi.mocked(verifyJWT);
+    mockVerifyJWT.mockResolvedValue({
       userId: "nonexistent-user",
       username: "ghost",
     });
 
     // Mock user not found in database
-    (prisma.user.findUnique as any).mockResolvedValue(null);
+    const mockFindUnique = vi.mocked(prisma.user.findUnique);
+    mockFindUnique.mockResolvedValue(null);
 
     const payload = await verifyJWT("valid-token");
     const user = await prisma.user.findUnique({

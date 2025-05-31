@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import SearchBar from "@/components/SearchBar";
 
-// Mock Next.js router
+// Mock next/navigation
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -11,7 +11,8 @@ vi.mock("next/navigation", () => ({
 }));
 
 // Mock fetch
-global.fetch = vi.fn();
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
 
 const mockCurrentUser = {
   id: "user1",
@@ -54,7 +55,7 @@ const mockSearchResults = [
 describe("SearchBar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (fetch as any).mockClear();
+    mockFetch.mockClear();
   });
 
   it("renders search input correctly", () => {
@@ -65,11 +66,11 @@ describe("SearchBar", () => {
   });
 
   it("shows loading state when searching", async () => {
-    (fetch as any).mockImplementation(() => 
+    mockFetch.mockImplementation(() => 
       new Promise(resolve => setTimeout(() => resolve({
         ok: true,
         json: () => Promise.resolve({ results: mockSearchResults }),
-      }), 100))
+      } as Response), 100))
     );
 
     render(<SearchBar currentUser={mockCurrentUser} />);
@@ -84,10 +85,10 @@ describe("SearchBar", () => {
   });
 
   it("displays search results correctly", async () => {
-    (fetch as any).mockResolvedValue({
+    mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ results: mockSearchResults }),
-    });
+    } as Response);
 
     render(<SearchBar currentUser={mockCurrentUser} />);
     
@@ -113,10 +114,10 @@ describe("SearchBar", () => {
   });
 
   it("highlights search terms in results", async () => {
-    (fetch as any).mockResolvedValue({
+    mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ results: mockSearchResults }),
-    });
+    } as Response);
 
     render(<SearchBar currentUser={mockCurrentUser} />);
     
@@ -130,10 +131,10 @@ describe("SearchBar", () => {
   });
 
   it("navigates to chat when result is clicked", async () => {
-    (fetch as any).mockResolvedValue({
+    mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ results: mockSearchResults }),
-    });
+    } as Response);
 
     render(<SearchBar currentUser={mockCurrentUser} />);
     
@@ -154,10 +155,10 @@ describe("SearchBar", () => {
   });
 
   it("shows no results message when search returns empty", async () => {
-    (fetch as any).mockResolvedValue({
+    mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ results: [] }),
-    });
+    } as Response);
 
     render(<SearchBar currentUser={mockCurrentUser} />);
     
@@ -170,10 +171,10 @@ describe("SearchBar", () => {
   });
 
   it("handles search errors gracefully", async () => {
-    (fetch as any).mockResolvedValue({
+    mockFetch.mockResolvedValue({
       ok: false,
       json: () => Promise.resolve({ error: "Search failed" }),
-    });
+    } as Response);
 
     render(<SearchBar currentUser={mockCurrentUser} />);
     
@@ -186,10 +187,10 @@ describe("SearchBar", () => {
   });
 
   it("closes results when clicking outside", async () => {
-    (fetch as any).mockResolvedValue({
+    mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ results: mockSearchResults }),
-    });
+    } as Response);
 
     render(
       <div>
@@ -218,10 +219,10 @@ describe("SearchBar", () => {
   });
 
   it("clears search when escape is pressed", async () => {
-    (fetch as any).mockResolvedValue({
+    mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ results: mockSearchResults }),
-    });
+    } as Response);
 
     render(<SearchBar currentUser={mockCurrentUser} />);
     

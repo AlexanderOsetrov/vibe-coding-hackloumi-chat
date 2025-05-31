@@ -7,6 +7,15 @@ import ContactsSidebar from "@/components/ContactsSidebar";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { useSocket } from "@/hooks/useSocket";
 
+interface ApiMessage {
+  id: string;
+  content: string;
+  createdAt: string;
+  sender: { id: string; username: string };
+  receiver: { id: string; username: string };
+  status?: string;
+}
+
 interface Message {
   id: string;
   content: string;
@@ -187,14 +196,7 @@ function ChatUserPageContent() {
         const data = await response.json();
         console.log("📬 Loaded messages from API:", data.messages.length);
         // Convert old message format to new format
-        const formattedMessages = data.messages.map((msg: {
-          id: string;
-          content: string;
-          createdAt: string;
-          sender: { id: string; username: string };
-          receiver: { id: string; username: string };
-          status?: string;
-        }) => ({
+        const formattedMessages = data.messages.map((msg: ApiMessage) => ({
           id: msg.id,
           content: msg.content,
           createdAt: msg.createdAt,
@@ -231,7 +233,7 @@ function ChatUserPageContent() {
         if (data.messages && data.messages.length > 0) {
           console.log("📨 Found new messages via polling:", data.messages.length);
           
-          const formattedMessages = data.messages.map((msg: any) => ({
+          const formattedMessages = data.messages.map((msg: ApiMessage) => ({
             id: msg.id,
             content: msg.content,
             createdAt: msg.createdAt,

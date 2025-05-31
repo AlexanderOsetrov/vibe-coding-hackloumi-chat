@@ -440,16 +440,17 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
     }
   }, [isConnected]);
 
-  // Initialize on mount and cleanup on unmount - FIXED: removed dependencies that cause cycles
+  // Initialize on mount and cleanup on unmount
   useEffect(() => {
     isMountedRef.current = true;
     initializeSocket();
-
+    
     return () => {
       isMountedRef.current = false;
       isInitializedRef.current = false;
       cleanup();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array - initialization happens only once
 
   return {

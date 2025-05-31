@@ -250,7 +250,7 @@ export function initializeSocket(server: HTTPServer) {
   });
 
   // Add engine error handling
-  io.engine.on("initial_headers", (headers, req) => {
+  io.engine.on("initial_headers", () => {
     // Add any custom headers if needed
   });
 

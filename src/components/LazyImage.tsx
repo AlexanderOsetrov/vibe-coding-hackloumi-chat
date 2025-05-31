@@ -61,6 +61,9 @@ export default function LazyImage({
 
   const handleError = () => {
     console.error(`❌ Image failed to load: ${src}`);
+    console.error(
+      `❌ Error details: Check if file exists and API route is working`
+    );
     setHasError(true);
     onError?.();
   };

@@ -17,6 +17,10 @@ echo "  User: $DB_USER"
 # Ensure log directories exist
 mkdir -p /var/log/supervisor /var/log/postgresql
 
+# Ensure uploads directory exists with proper permissions
+mkdir -p /app/public/uploads
+chmod 755 /app/public/uploads
+
 # Ensure proper ownership of PostgreSQL directories
 chown -R postgres:postgres /var/lib/postgresql /var/log/postgresql
 

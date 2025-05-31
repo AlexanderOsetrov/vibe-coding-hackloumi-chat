@@ -60,6 +60,9 @@ COPY next.config.ts ./
 COPY tsconfig.json ./
 COPY src ./src/
 
+# Create uploads directory for file uploads
+RUN mkdir -p public/uploads
+
 # Create supervisord configuration
 RUN mkdir -p /etc/supervisor/conf.d
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf

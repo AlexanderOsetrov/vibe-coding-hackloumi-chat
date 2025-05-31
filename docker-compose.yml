@@ -13,6 +13,8 @@ services:
       - app_logs:/var/log
       # Optional: mount node_modules for faster rebuilds in development
       - node_modules:/app/node_modules
+      # Persist uploaded images
+      - uploads_data:/app/public/uploads
     env_file:
       - .env
     environment:
@@ -37,6 +39,8 @@ volumes:
   app_logs:
     driver: local
   node_modules:
+    driver: local
+  uploads_data:
     driver: local
 
 networks:

@@ -815,6 +815,101 @@ The `make dev` command includes automatic database verification, but if you enco
 
 3. **Restart development server** after changing environment variables
 
+### Image Upload Issues
+
+1. **Images not loading after upload (Docker/AWS)**:
+
+   In production deployments (Docker/AWS), images are served via API route `/api/uploads/[filename]` instead of static file serving. The volume mount ensures persistence:
+
+   ```yaml
+   volumes:
+     - uploads_data:/app/public/uploads
+   ```
+
+   If you're still having issues:
+
+   ```bash
+   # Restart the container to recreate the volume mount
+   make destroy
+   make deploy
+
+   # Check if uploads directory exists in container
+   docker exec -it $(docker ps -q --filter "name=hackloumi") ls -la /app/public/
+
+   # Test file serving API directly
+   curl http://localhost:3000/api/uploads/your-image-name.jpg
+   ```
+
+2. **Permission issues with uploads**:
+
+   ```bash
+   # Check container logs for permission errors
+   make logs
+
+   # The start script should automatically set permissions:
+   # mkdir -p /app/public/uploads && chmod 755 /app/public/uploads
+   ```
+
+3. **Upload API returning success but image not displaying**:
+
+   This usually indicates the file was saved but the file serving API isn't working:
+
+   ```bash
+   # Check if file exists in container
+   docker exec -it $(docker ps -q --filter "name=hackloumi") ls -la /app/public/uploads/
+
+   # Test the file serving API directly (production uses API route)
+   curl http://localhost:3000/api/uploads/your-image-name.jpg
+
+   # Check API logs for serving errors
+   make logs | grep "File serve error"
+   ```
+
+4. **File type validation errors**:
+
+   Only JPEG, PNG, GIF, and WebP files are allowed. Check browser developer tools for specific error messages.
+
+### Testing Image Upload System
+
+After deploying with `make deploy`, test the complete image upload flow:
+
+```bash
+# 1. Check if upload API works
+curl -X POST http://localhost:3000/api/upload \
+  -H "Cookie: auth-token=YOUR_JWT_TOKEN" \
+  -F "image=@path/to/test-image.jpg"
+
+# Expected response:
+# {"message":"File uploaded successfully","data":{"url":"/api/uploads/TIMESTAMP-RANDOMSTRING.jpg",...}}
+
+# 2. Test file serving API
+curl -I http://localhost:3000/api/uploads/TIMESTAMP-RANDOMSTRING.jpg
+
+# Expected response:
+# HTTP/1.1 200 OK
+# Content-Type: image/jpeg
+# Cache-Control: public, max-age=31536000, immutable
+
+# 3. Check file persistence in container
+docker exec -it $(docker ps -q --filter "name=hackloumi") ls -la /app/public/uploads/
+
+# 4. Test upload via UI
+# - Login to the app at http://localhost:3000
+# - Navigate to a chat
+# - Click the image upload button (camera icon)
+# - Select an image file
+# - Send the message
+# - Verify the image displays correctly
+```
+
+**What Changed for Production (Docker/AWS):**
+
+- ✅ **Development**: Images served directly from `/uploads/` (static files)
+- ✅ **Production**: Images served via `/api/uploads/[filename]` (API route)
+- ✅ **Volume Mount**: Ensures file persistence across container restarts
+- ✅ **Security**: Filename validation prevents directory traversal attacks
+- ✅ **Caching**: Proper cache headers for optimal performance
+
 ### Docker Context Issues (Rancher Desktop)
 
 If you're using Rancher Desktop and get Docker connection errors:

@@ -44,3 +44,21 @@ next-env.d.ts
 
 # uploaded images
 /public/uploads
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+terraform.tfstate
+terraform.tfstate.backup
+*.tfplan
+*.tfplan.*
+
+# Terragrunt
+.terragrunt-cache/
+terragrunt.hcl.backup
+
+# AWS/Cloud credentials and config
+.aws/
+*.pem
+*.key

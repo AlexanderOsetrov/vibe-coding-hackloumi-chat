@@ -37,7 +37,7 @@ describe("Contacts Feature", () => {
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({}) // Mock online status API call
+          json: () => Promise.resolve({}), // Mock online status API call
         });
 
       render(<ContactsSidebar currentUser={mockCurrentUser} />);
@@ -57,7 +57,7 @@ describe("Contacts Feature", () => {
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({}) // Mock online status API call
+          json: () => Promise.resolve({}), // Mock online status API call
         });
 
       render(<ContactsSidebar currentUser={mockCurrentUser} />);
@@ -101,7 +101,7 @@ describe("Contacts Feature", () => {
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({}) // Mock online status API call
+          json: () => Promise.resolve({}), // Mock online status API call
         });
 
       render(<ContactsSidebar currentUser={mockCurrentUser} />);
@@ -137,13 +137,15 @@ describe("Contacts Feature", () => {
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({}) // Mock online status API call
+          json: () => Promise.resolve({}), // Mock online status API call
         });
 
       render(<ContactsSidebar currentUser={mockCurrentUser} />);
 
       await waitFor(() => {
-        expect(screen.getByText("RECEIVED INVITATIONS (1)")).toBeInTheDocument();
+        expect(
+          screen.getByText("RECEIVED INVITATIONS (1)")
+        ).toBeInTheDocument();
         expect(screen.getByText("sender1")).toBeInTheDocument();
         expect(screen.getByText("ACCEPT")).toBeInTheDocument();
         expect(screen.getByText("DECLINE")).toBeInTheDocument();
@@ -162,7 +164,7 @@ describe("Contacts Feature", () => {
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({}) // Mock online status API call
+          json: () => Promise.resolve({}), // Mock online status API call
         })
         .mockResolvedValueOnce({
           ok: true,
@@ -182,7 +184,7 @@ describe("Contacts Feature", () => {
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({}) // Mock online status API call
+          json: () => Promise.resolve({}), // Mock online status API call
         });
 
       render(<ContactsSidebar currentUser={mockCurrentUser} />);
@@ -229,7 +231,7 @@ describe("Contacts Feature", () => {
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({}) // Mock online status API call
+          json: () => Promise.resolve({}), // Mock online status API call
         })
         .mockResolvedValueOnce({
           ok: true,
@@ -246,7 +248,7 @@ describe("Contacts Feature", () => {
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({}) // Mock online status API call
+          json: () => Promise.resolve({}), // Mock online status API call
         });
 
       render(<ContactsSidebar currentUser={mockCurrentUser} />);

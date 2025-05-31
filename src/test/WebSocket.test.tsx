@@ -42,17 +42,19 @@ describe("WebSocket Hook", () => {
     render(<TestComponent />);
 
     // Initially should be disconnected
-    expect(screen.getByTestId("connection-type")).toHaveTextContent("disconnected");
+    expect(screen.getByTestId("connection-type")).toHaveTextContent(
+      "disconnected"
+    );
   });
 
   it("should handle message sending", async () => {
     const onMessageSent = vi.fn();
-    
+
     const TestComponent = () => {
       const { sendMessage } = useSocket({ onMessageSent });
-      
+
       return (
-        <button 
+        <button
           onClick={() => sendMessage("Hello", "testuser")}
           data-testid="send-button"
         >
@@ -62,7 +64,7 @@ describe("WebSocket Hook", () => {
     };
 
     render(<TestComponent />);
-    
+
     const sendButton = screen.getByTestId("send-button");
     fireEvent.click(sendButton);
 
@@ -71,7 +73,10 @@ describe("WebSocket Hook", () => {
       expect(global.fetch).toHaveBeenCalledWith("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: "Hello", receiverUsername: "testuser" }),
+        body: JSON.stringify({
+          content: "Hello",
+          receiverUsername: "testuser",
+        }),
       });
     });
   });
@@ -79,16 +84,16 @@ describe("WebSocket Hook", () => {
   it("should handle typing indicators", () => {
     const TestComponent = () => {
       const { startTyping, stopTyping } = useSocket();
-      
+
       return (
         <div>
-          <button 
+          <button
             onClick={() => startTyping("testuser")}
             data-testid="start-typing"
           >
             Start Typing
           </button>
-          <button 
+          <button
             onClick={() => stopTyping("testuser")}
             data-testid="stop-typing"
           >
@@ -99,14 +104,14 @@ describe("WebSocket Hook", () => {
     };
 
     render(<TestComponent />);
-    
+
     const startButton = screen.getByTestId("start-typing");
     const stopButton = screen.getByTestId("stop-typing");
-    
+
     // Should not throw errors when WebSocket is not connected
     expect(() => {
       fireEvent.click(startButton);
       fireEvent.click(stopButton);
     }).not.toThrow();
   });
-}); 
+});

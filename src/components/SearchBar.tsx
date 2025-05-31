@@ -8,7 +8,7 @@ interface SearchResult {
   content: string;
   createdAt: string;
   rank: number;
-  type: 'direct' | 'group';
+  type: "direct" | "group";
   sender: {
     id: string;
     username: string;
@@ -59,7 +59,10 @@ export default function SearchBar({ currentUser }: SearchBarProps) {
   // Close search results when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+      if (
+        searchRef.current &&
+        !searchRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
@@ -75,7 +78,9 @@ export default function SearchBar({ currentUser }: SearchBarProps) {
     setError("");
 
     try {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
+      const response = await fetch(
+        `/api/search?q=${encodeURIComponent(searchQuery)}`
+      );
       const data = await response.json();
 
       if (response.ok) {
@@ -98,8 +103,8 @@ export default function SearchBar({ currentUser }: SearchBarProps) {
   const handleResultClick = (result: SearchResult) => {
     setIsOpen(false);
     setQuery("");
-    
-    if (result.type === 'group') {
+
+    if (result.type === "group") {
       // Navigate to group chat
       router.push(`/chat/group/${result.group?.id}`);
     } else {
@@ -121,31 +126,39 @@ export default function SearchBar({ currentUser }: SearchBarProps) {
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
 
     if (diffInHours < 24) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     } else if (diffInHours < 24 * 7) {
-      return date.toLocaleDateString([], { weekday: 'short' });
+      return date.toLocaleDateString([], { weekday: "short" });
     } else {
-      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      return date.toLocaleDateString([], { month: "short", day: "numeric" });
     }
   };
 
   const highlightMatch = (text: string, searchQuery: string) => {
     if (!searchQuery.trim()) return text;
-    
-    const regex = new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+
+    const regex = new RegExp(
+      `(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
+      "gi"
+    );
     const parts = text.split(regex);
-    
-    return parts.map((part, index) => 
+
+    return parts.map((part, index) =>
       regex.test(part) ? (
         <mark key={index} className="bg-zinc-700 text-white px-1 rounded-sm">
           {part}
         </mark>
-      ) : part
+      ) : (
+        part
+      )
     );
   };
 
-  const getResultTypeIcon = (type: 'direct' | 'group') => {
-    if (type === 'group') {
+  const getResultTypeIcon = (type: "direct" | "group") => {
+    if (type === "group") {
       return (
         <svg
           className="w-3 h-3 text-zinc-500"
@@ -223,7 +236,7 @@ export default function SearchBar({ currentUser }: SearchBarProps) {
               {error}
             </div>
           )}
-          
+
           {results.length === 0 && !error && !isLoading && (
             <div className="p-4 text-zinc-500 text-sm text-center">
               No messages found for &quot;{query}&quot;
@@ -240,9 +253,11 @@ export default function SearchBar({ currentUser }: SearchBarProps) {
                 <div className="flex items-center space-x-2">
                   {getResultTypeIcon(result.type)}
                   <div className="text-xs text-zinc-400 uppercase tracking-wider">
-                    {result.type === 'group' ? `# ${result.conversationWith}` : result.conversationWith}
+                    {result.type === "group"
+                      ? `# ${result.conversationWith}`
+                      : result.conversationWith}
                   </div>
-                  {result.type === 'group' && (
+                  {result.type === "group" && (
                     <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded">
                       GROUP
                     </span>
@@ -256,22 +271,25 @@ export default function SearchBar({ currentUser }: SearchBarProps) {
                 {highlightMatch(result.content, query)}
               </div>
               <div className="mt-2 text-xs text-zinc-600">
-                From: {result.sender.username === currentUser?.username ? "You" : result.sender.username}
-                {result.type === 'group' && ` in ${result.group?.name}`}
+                From:{" "}
+                {result.sender.username === currentUser?.username
+                  ? "You"
+                  : result.sender.username}
+                {result.type === "group" && ` in ${result.group?.name}`}
               </div>
             </div>
           ))}
 
           {results.length > 0 && (
             <div className="p-2 text-xs text-zinc-600 text-center border-t border-zinc-800">
-              {results.length} result{results.length !== 1 ? 's' : ''} found
-              {results.some(r => r.type === 'direct') && results.some(r => r.type === 'group') && 
-                ` (${results.filter(r => r.type === 'direct').length} direct, ${results.filter(r => r.type === 'group').length} group)`
-              }
+              {results.length} result{results.length !== 1 ? "s" : ""} found
+              {results.some((r) => r.type === "direct") &&
+                results.some((r) => r.type === "group") &&
+                ` (${results.filter((r) => r.type === "direct").length} direct, ${results.filter((r) => r.type === "group").length} group)`}
             </div>
           )}
         </div>
       )}
     </div>
   );
-} 
+}

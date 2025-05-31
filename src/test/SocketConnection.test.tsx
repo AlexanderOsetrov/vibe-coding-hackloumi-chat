@@ -12,15 +12,15 @@ vi.mock("socket.io-client", () => {
     id: "mock-socket-id",
     io: {
       engine: {
-        transport: { name: "websocket" }
-      }
+        transport: { name: "websocket" },
+      },
     },
     removeAllListeners: vi.fn(),
     once: vi.fn(),
   };
 
   const mockIo = vi.fn(() => mockSocket);
-  
+
   return {
     default: mockIo,
     io: mockIo,
@@ -69,4 +69,4 @@ describe("Socket Connection", () => {
     expect(expectedConfig.transports).toEqual(["polling", "websocket"]);
     expect(expectedConfig.reconnectionAttempts).toBe(3);
   });
-}); 
+});

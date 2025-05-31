@@ -78,21 +78,28 @@ describe("SearchBar", () => {
 
   it("renders search input correctly", () => {
     render(<SearchBar currentUser={mockCurrentUser} />);
-    
+
     const searchInput = screen.getByPlaceholderText("Search messages...");
     expect(searchInput).toBeInTheDocument();
   });
 
   it("shows loading state when searching", async () => {
-    mockFetch.mockImplementation(() => 
-      new Promise(resolve => setTimeout(() => resolve({
-        ok: true,
-        json: () => Promise.resolve({ results: mockSearchResults }),
-      } as Response), 100))
+    mockFetch.mockImplementation(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(
+            () =>
+              resolve({
+                ok: true,
+                json: () => Promise.resolve({ results: mockSearchResults }),
+              } as Response),
+            100
+          )
+        )
     );
 
     render(<SearchBar currentUser={mockCurrentUser} />);
-    
+
     const searchInput = screen.getByPlaceholderText("Search messages...");
     fireEvent.change(searchInput, { target: { value: "test" } });
 
@@ -109,31 +116,39 @@ describe("SearchBar", () => {
     } as Response);
 
     render(<SearchBar currentUser={mockCurrentUser} />);
-    
+
     const searchInput = screen.getByPlaceholderText("Search messages...");
     fireEvent.change(searchInput, { target: { value: "test" } });
 
     await waitFor(() => {
       // Use more flexible text matching that can handle highlighted text
-      expect(screen.getByText((content, element) => {
-        return element?.textContent === "Hello world, this is a test message";
-      })).toBeInTheDocument();
-      
-      expect(screen.getByText((content, element) => {
-        return element?.textContent === "Another message with test content";
-      })).toBeInTheDocument();
+      expect(
+        screen.getByText((content, element) => {
+          return element?.textContent === "Hello world, this is a test message";
+        })
+      ).toBeInTheDocument();
 
-      expect(screen.getByText((content, element) => {
-        return element?.textContent === "Group message with test content";
-      })).toBeInTheDocument();
+      expect(
+        screen.getByText((content, element) => {
+          return element?.textContent === "Another message with test content";
+        })
+      ).toBeInTheDocument();
+
+      expect(
+        screen.getByText((content, element) => {
+          return element?.textContent === "Group message with test content";
+        })
+      ).toBeInTheDocument();
     });
 
     // Should show conversation partner names
     expect(screen.getAllByText("friend")).toHaveLength(2);
     expect(screen.getByText("# Test Group")).toBeInTheDocument();
-    
+
     // Should show result count
-    expect(screen.getByText("3 results found (2 direct, 1 group)")).toBeInTheDocument();
+    expect(
+      screen.getByText("3 results found (2 direct, 1 group)")
+    ).toBeInTheDocument();
   });
 
   it("highlights search terms in results", async () => {
@@ -143,7 +158,7 @@ describe("SearchBar", () => {
     } as Response);
 
     render(<SearchBar currentUser={mockCurrentUser} />);
-    
+
     const searchInput = screen.getByPlaceholderText("Search messages...");
     fireEvent.change(searchInput, { target: { value: "test" } });
 
@@ -160,7 +175,7 @@ describe("SearchBar", () => {
     } as Response);
 
     render(<SearchBar currentUser={mockCurrentUser} />);
-    
+
     const searchInput = screen.getByPlaceholderText("Search messages...");
     fireEvent.change(searchInput, { target: { value: "test" } });
 
@@ -184,7 +199,7 @@ describe("SearchBar", () => {
     } as Response);
 
     render(<SearchBar currentUser={mockCurrentUser} />);
-    
+
     const searchInput = screen.getByPlaceholderText("Search messages...");
     fireEvent.change(searchInput, { target: { value: "test" } });
 
@@ -208,7 +223,7 @@ describe("SearchBar", () => {
     } as Response);
 
     render(<SearchBar currentUser={mockCurrentUser} />);
-    
+
     const searchInput = screen.getByPlaceholderText("Search messages...");
     fireEvent.change(searchInput, { target: { value: "nonexistent" } });
 
@@ -224,7 +239,7 @@ describe("SearchBar", () => {
     } as Response);
 
     render(<SearchBar currentUser={mockCurrentUser} />);
-    
+
     const searchInput = screen.getByPlaceholderText("Search messages...");
     fireEvent.change(searchInput, { target: { value: "test" } });
 
@@ -245,23 +260,27 @@ describe("SearchBar", () => {
         <div data-testid="outside">Outside element</div>
       </div>
     );
-    
+
     const searchInput = screen.getByPlaceholderText("Search messages...");
     fireEvent.change(searchInput, { target: { value: "test" } });
 
     await waitFor(() => {
-      expect(screen.getByText((content, element) => {
-        return element?.textContent === "Hello world, this is a test message";
-      })).toBeInTheDocument();
+      expect(
+        screen.getByText((content, element) => {
+          return element?.textContent === "Hello world, this is a test message";
+        })
+      ).toBeInTheDocument();
     });
 
     // Click outside
     fireEvent.mouseDown(screen.getByTestId("outside"));
 
     await waitFor(() => {
-      expect(screen.queryByText((content, element) => {
-        return element?.textContent === "Hello world, this is a test message";
-      })).not.toBeInTheDocument();
+      expect(
+        screen.queryByText((content, element) => {
+          return element?.textContent === "Hello world, this is a test message";
+        })
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -272,23 +291,27 @@ describe("SearchBar", () => {
     } as Response);
 
     render(<SearchBar currentUser={mockCurrentUser} />);
-    
+
     const searchInput = screen.getByPlaceholderText("Search messages...");
     fireEvent.change(searchInput, { target: { value: "test" } });
 
     await waitFor(() => {
-      expect(screen.getByText((content, element) => {
-        return element?.textContent === "Hello world, this is a test message";
-      })).toBeInTheDocument();
+      expect(
+        screen.getByText((content, element) => {
+          return element?.textContent === "Hello world, this is a test message";
+        })
+      ).toBeInTheDocument();
     });
 
     // Press escape
     fireEvent.keyDown(searchInput, { key: "Escape" });
 
     await waitFor(() => {
-      expect(screen.queryByText((content, element) => {
-        return element?.textContent === "Hello world, this is a test message";
-      })).not.toBeInTheDocument();
+      expect(
+        screen.queryByText((content, element) => {
+          return element?.textContent === "Hello world, this is a test message";
+        })
+      ).not.toBeInTheDocument();
     });
   });
-}); 
+});

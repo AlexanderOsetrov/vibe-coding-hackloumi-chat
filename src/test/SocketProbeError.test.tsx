@@ -26,7 +26,7 @@ describe("Socket.IO Probe Error Prevention", () => {
 
   it("should handle mount status checks", () => {
     let isMounted = true;
-    
+
     // Simulate callback that checks mount status
     const safeCallback = (callback: () => void) => {
       if (isMounted) {
@@ -35,7 +35,7 @@ describe("Socket.IO Probe Error Prevention", () => {
     };
 
     const mockCallback = vi.fn();
-    
+
     // Should call when mounted
     safeCallback(mockCallback);
     expect(mockCallback).toHaveBeenCalledTimes(1);
@@ -59,7 +59,7 @@ describe("Socket.IO Probe Error Prevention", () => {
 
   it("should have proper cleanup order", () => {
     const cleanupSteps: string[] = [];
-    
+
     // Simulate cleanup process
     const cleanup = () => {
       cleanupSteps.push("set unmounted");
@@ -73,10 +73,10 @@ describe("Socket.IO Probe Error Prevention", () => {
 
     expect(cleanupSteps).toEqual([
       "set unmounted",
-      "clear timeouts", 
+      "clear timeouts",
       "clear intervals",
       "remove listeners",
-      "disconnect socket"
+      "disconnect socket",
     ]);
   });
 
@@ -93,14 +93,14 @@ describe("Socket.IO Probe Error Prevention", () => {
     // Operations while mounted
     safeOperation("connect");
     safeOperation("send message");
-    
+
     // Unmount
     isMounted = false;
-    
+
     // Operations after unmount (should be ignored)
     safeOperation("receive message");
     safeOperation("typing indicator");
 
     expect(operations).toEqual(["connect", "send message"]);
   });
-}); 
+});

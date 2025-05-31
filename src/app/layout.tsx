@@ -14,7 +14,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Hackloumi Chat - Modern Privacy-Focused Messaging",
-  description: "A modern, minimalistic chat platform built for seamless conversations. Privacy-focused, real-time messaging with an elegant interface.",
+  description:
+    "A modern, minimalistic chat platform built for seamless conversations. Privacy-focused, real-time messaging with an elegant interface.",
 };
 
 export default function RootLayout({

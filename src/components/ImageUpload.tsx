@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from "react";
 
 interface ImageUploadProps {
   onImageUploaded: (imageData: {
@@ -26,16 +26,18 @@ export default function ImageUpload({
     if (!file) return;
 
     // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
-      onUploadError('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
+      onUploadError(
+        "Please select a valid image file (JPEG, PNG, GIF, or WebP)"
+      );
       return;
     }
 
     // Validate file size (10MB max)
     const maxSize = 10 * 1024 * 1024;
     if (file.size > maxSize) {
-      onUploadError('File size must be less than 10MB');
+      onUploadError("File size must be less than 10MB");
       return;
     }
 
@@ -45,32 +47,31 @@ export default function ImageUpload({
 
   const uploadFile = async (file: File) => {
     setIsUploading(true);
-    
+
     try {
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append("image", file);
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
+      const response = await fetch("/api/upload", {
+        method: "POST",
         body: formData,
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Upload failed');
+        throw new Error(errorData.error || "Upload failed");
       }
 
       const data = await response.json();
       onImageUploaded(data.data);
-      
     } catch (error) {
-      console.error('Upload error:', error);
-      onUploadError(error instanceof Error ? error.message : 'Upload failed');
+      console.error("Upload error:", error);
+      onUploadError(error instanceof Error ? error.message : "Upload failed");
     } finally {
       setIsUploading(false);
       // Reset file input
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     }
   };
@@ -86,11 +87,11 @@ export default function ImageUpload({
         className="hidden"
         id="image-upload"
       />
-      
+
       <label
         htmlFor="image-upload"
         className={`inline-flex items-center justify-center w-10 h-10 rounded-lg border border-zinc-700 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300 transition-colors cursor-pointer ${
-          disabled || isUploading ? 'opacity-50 cursor-not-allowed' : ''
+          disabled || isUploading ? "opacity-50 cursor-not-allowed" : ""
         }`}
         title="Upload Image"
       >
@@ -114,4 +115,4 @@ export default function ImageUpload({
       </label>
     </div>
   );
-} 
+}

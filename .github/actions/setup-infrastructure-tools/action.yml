@@ -1,0 +1,39 @@
+name: 'Setup Infrastructure Tools'
+description: 'Install Terragrunt and OpenTofu for infrastructure management'
+
+inputs:
+  terragrunt-version:
+    description: 'Version of Terragrunt to install'
+    required: false
+    default: 'v0.55.1'
+  
+  opentofu-version:
+    description: 'Version of OpenTofu to install'
+    required: false
+    default: 'v1.9.1'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Terragrunt
+      shell: bash
+      run: |
+        echo "Installing Terragrunt ${{ inputs.terragrunt-version }}..."
+        wget -O terragrunt https://github.com/gruntwork-io/terragrunt/releases/download/${{ inputs.terragrunt-version }}/terragrunt_linux_amd64
+        chmod +x terragrunt
+        sudo mv terragrunt /usr/local/bin/
+        terragrunt --version
+    
+    - name: Install OpenTofu
+      shell: bash
+      run: |
+        echo "Installing OpenTofu ${{ inputs.opentofu-version }}..."
+        # Remove 'v' prefix for download URL
+        VERSION="${{ inputs.opentofu-version }}"
+        VERSION_NUMBER="${VERSION#v}"
+        wget -O tofu.tar.gz https://github.com/opentofu/opentofu/releases/download/${{ inputs.opentofu-version }}/tofu_${VERSION_NUMBER}_linux_amd64.tar.gz
+        tar -xzf tofu.tar.gz
+        chmod +x tofu
+        sudo mv tofu /usr/local/bin/
+        rm tofu.tar.gz
+        tofu --version 

@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import Image from 'next/image';
+import React, { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 
 interface LazyImageProps {
   src: string;
@@ -17,7 +17,7 @@ interface LazyImageProps {
 export default function LazyImage({
   src,
   alt,
-  className = '',
+  className = "",
   maxWidth = 300,
   maxHeight = 200,
   onLoad,
@@ -40,7 +40,7 @@ export default function LazyImage({
         });
       },
       {
-        rootMargin: '50px',
+        rootMargin: "50px",
       }
     );
 
@@ -72,8 +72,8 @@ export default function LazyImage({
       style={{
         maxWidth: `${maxWidth}px`,
         maxHeight: `${maxHeight}px`,
-        minHeight: '100px',
-        minWidth: '150px',
+        minHeight: "100px",
+        minWidth: "150px",
       }}
     >
       {!isInView && (
@@ -94,10 +94,10 @@ export default function LazyImage({
             alt={alt}
             width={800}
             height={600}
-            className={`max-w-full h-auto rounded-lg cursor-pointer ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className={`max-w-full h-auto rounded-lg cursor-pointer ${isLoaded ? "opacity-100" : "opacity-0"}`}
             style={{
-              maxHeight: '400px',
-              objectFit: 'contain'
+              maxHeight: "400px",
+              objectFit: "contain",
             }}
             onLoad={handleLoad}
             onError={handleError}
@@ -117,4 +117,4 @@ export default function LazyImage({
       )}
     </div>
   );
-} 
+}

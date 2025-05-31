@@ -62,7 +62,7 @@ export async function verifyAuth(request: NextRequest): Promise<{
   username?: string;
 }> {
   try {
-    const cookieHeader = request.headers.get('cookie');
+    const cookieHeader = request.headers.get("cookie");
     if (!cookieHeader) {
       return { success: false };
     }
@@ -75,7 +75,7 @@ export async function verifyAuth(request: NextRequest): Promise<{
 
     const token = authTokenMatch[1];
     const payload = await verifyJWT(token);
-    
+
     if (!payload) {
       return { success: false };
     }
@@ -83,7 +83,7 @@ export async function verifyAuth(request: NextRequest): Promise<{
     return {
       success: true,
       userId: payload.userId,
-      username: payload.username
+      username: payload.username,
     };
   } catch {
     return { success: false };

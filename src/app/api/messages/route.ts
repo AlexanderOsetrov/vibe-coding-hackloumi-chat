@@ -9,14 +9,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { 
-      content, 
-      receiverUsername, 
+    const {
+      content,
+      receiverUsername,
       groupId,
       imageUrl,
       imageFilename,
       imageMimeType,
-      imageSize
+      imageSize,
     } = await request.json();
 
     // Validation - either content or image is required
@@ -37,7 +37,10 @@ export async function POST(request: NextRequest) {
     // Ensure only one recipient type is specified
     if ((!receiverUsername && !groupId) || (receiverUsername && groupId)) {
       return NextResponse.json(
-        { error: "Either receiverUsername or groupId must be specified, but not both" },
+        {
+          error:
+            "Either receiverUsername or groupId must be specified, but not both",
+        },
         { status: 400 }
       );
     }
@@ -51,14 +54,14 @@ export async function POST(request: NextRequest) {
         where: {
           userId_groupId: {
             userId: authUser.userId,
-            groupId
-          }
+            groupId,
+          },
         },
         include: {
           group: {
-            select: { id: true, name: true }
-          }
-        }
+            select: { id: true, name: true },
+          },
+        },
       });
 
       if (!groupMember) {
@@ -210,13 +213,16 @@ export async function GET(request: NextRequest) {
         where: {
           userId_groupId: {
             userId: authUser.userId,
-            groupId
-          }
-        }
+            groupId,
+          },
+        },
       });
 
       if (!groupMember) {
-        return NextResponse.json({ error: "You are not a member of this group" }, { status: 403 });
+        return NextResponse.json(
+          { error: "You are not a member of this group" },
+          { status: 403 }
+        );
       }
 
       whereConditions = {
